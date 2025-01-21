@@ -94,6 +94,14 @@ void  Function_Release  (IM3Function i_function)
         }
     }
 
+#   ifndef d_m3MaxDuplicateFunctionImpl
+    {
+        m3_Free(i_function->names);
+    }
+#   else
+#       error "attention, i_function->names is now a dynamically allocated array"
+#   endif
+
     FreeImportInfo (& i_function->import);
 
     if (i_function->ownsWasmCode)

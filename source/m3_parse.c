@@ -328,24 +328,26 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         {
             _throwif(m3Err_wasmMalformed, index >= io_module->numFunctions);
             IM3Function func = &(io_module->functions [index]);
-            if (func->numNames < d_m3MaxDuplicateFunctionImpl)
+            if (func->numNames < UINT16_MAX)
             {
-                func->names[func->numNames++] = utf8;
+                u16 name_idx = func->numNames++;
+                func->names = m3_ReallocArray(cstr_t, func->names, func->numNames, name_idx);
+                func->names[name_idx] = utf8;
                 utf8 = NULL; // ownership transferred to M3Function
                 names[name_count].owned = 0;
-                names[name_count].name = func->names[func->numNames-1];
+                names[name_count].name = func->names[name_idx];
                 name_count++;
             }
             else
             {
-                _throw("max function exports exceeded");
+                _throw("max function duplicate exports exceeded");
             }
         }
         else if (exportKind == d_externalKind_global)
         {
             _throwif(m3Err_wasmMalformed, index >= io_module->numGlobals);
             IM3Global global = &(io_module->globals [index]);
-            _throwif(m3Err_wasmMalformed, (global->name));
+            _throwif("global duplicate export", (global->name));
             global->name = utf8;
             utf8 = NULL; // ownership transferred to M3Global
             names[name_count].owned = 0;

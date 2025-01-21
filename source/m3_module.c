@@ -73,6 +73,10 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 
 _try {
+    _throwif(
+        "function count overflow",
+        io_module->numFunctions == UINT32_MAX
+    );
 
     u32 index = io_module->numFunctions++;
     io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
@@ -92,6 +96,7 @@ _try {
     if (i_importInfo and func->numNames == 0)
     {
         func->import = * i_importInfo;
+        func->names = m3_ReallocArray(cstr_t, func->names, 1, 0);
         func->names[0] = i_importInfo->fieldUtf8;
         func->numNames = 1;
     }

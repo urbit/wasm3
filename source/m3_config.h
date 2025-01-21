@@ -36,9 +36,9 @@
 #   define d_m3MaxConstantTableSize             120
 # endif
 
-# ifndef d_m3MaxDuplicateFunctionImpl
-#   define d_m3MaxDuplicateFunctionImpl         3
-# endif
+// # ifndef d_m3MaxDuplicateFunctionImpl
+// #   define d_m3MaxDuplicateFunctionImpl         3
+// # endif
 
 # ifndef d_m3EnableExtendedOpcodes
 #   define d_m3EnableExtendedOpcodes            1

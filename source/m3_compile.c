@@ -1385,7 +1385,7 @@ _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
         {
             u32 bits = o->blockIsLoop[block_idx >> 5];
             bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)
-                ^ ((u32)1 << (1 + (block_idx & 31) - blocks_to_count)) - 1;
+                ^ (((u32)1 << (1 + (block_idx & 31) - blocks_to_count)) - 1);
             
             num_loops += __builtin_popcount(bits);
         }

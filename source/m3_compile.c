@@ -1366,15 +1366,28 @@ _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
     if (o->block.depth > 0 && depth > 0)
     {
         u32 blocks_to_count = depth;
-        u32 num_blocks = o->block.depth;
-        /* TODO optimize with masking and popcnt */
-        while (blocks_to_count--)
+        u32 block_idx = o->block.depth - 1;
+        while ( (block_idx & 31) < blocks_to_count )
         {
-            num_blocks--;
-            if (o->blockIsLoop[num_blocks >> 5] & (1U << (num_blocks & 31)))
-            {
-                num_loops++;
-            }
+            u32 bits = o->blockIsLoop[block_idx >> 5]
+                & (u32)(((u64)1 << (1 + (block_idx & 31))) - 1);
+            
+            num_loops += __builtin_popcount(bits);
+            
+            blocks_to_count -= (block_idx & 31);
+            blocks_to_count--;
+            
+            block_idx &= ~((u32)31);
+            block_idx--;
+        }
+
+        if (blocks_to_count)
+        {
+            u32 bits = o->blockIsLoop[block_idx >> 5];
+            bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)
+                ^ ((u32)1 << (1 + (block_idx & 31) - blocks_to_count)) - 1;
+            
+            num_loops += __builtin_popcount(bits);
         }
     }
 

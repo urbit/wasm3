@@ -185,6 +185,24 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
             runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->stack);
         }
         else m3_Free (runtime);
+
+        
+        size_t stack_suspend_bytes = (
+            (i_stackSizeInBytes + (sizeof(m3slot_t) - 1))
+            & ~(sizeof(m3slot_t) - 1)   // round up to a multiple of sizeof(m3slot_t)
+        );
+        
+        runtime->stack_suspend = m3_Malloc(stack_suspend_bytes);
+
+        if (runtime->stack_suspend)
+        {
+            runtime->size_suspend = stack_suspend_bytes / sizeof(m3slot_t);
+        }
+        else
+        {
+            m3_Free(runtime->stack);
+            m3_Free(runtime);
+        }
     }
 
     return runtime;
@@ -231,6 +249,7 @@ void  Runtime_Release  (IM3Runtime i_runtime)
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
     m3_Free (i_runtime->stack);
+    m3_Free (i_runtime->stack_suspend);
     m3_Free (i_runtime->memory.mallocated);
 }
 

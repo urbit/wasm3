@@ -146,6 +146,8 @@ typedef struct
     u16                 regStackIndexPlusOne        [2];
 
     m3opcode_t          previousOpcode;
+
+    u32                 blockIsLoop[(d_m3MaxSaneFrameDepth + 31) >> 5];  // bit array of whether a block scope is a loop
 }
 M3Compilation;
 

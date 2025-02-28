@@ -221,6 +221,10 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      void  (* free_fn)(void*),
                                                      void* (* realloc_fn)(void*, size_t));
 
+    M3Result            m3_SetTransientAllocators   (void* (* calloc_fn)(size_t, size_t),
+                                                     void  (* free_fn)(void*),
+                                                     void* (* realloc_fn)(void*, size_t));
+
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  modules

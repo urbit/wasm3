@@ -168,11 +168,16 @@ typedef struct M3Runtime
     IM3Module               modules;        // linked list of imported modules
 
     void *                  stack;
-    u32                     stackSize;
+    m3slot_t *              stack_suspend;
+    u32                     edge_suspend;
+    u32                     size_suspend;
+    u8 *                    base;           // start of the memory arena for persistent computations
+    u8 *                    base_transient; // start of the memory arena for transient data
     u32                     numStackSlots;
     IM3Function             lastCalled;     // last function that successfully executed
 
     void *                  userdata;
+    void *                  userdata_import;  // for imported functions after suspension, TODO different datas for different functions
 
     M3Memory                memory;
     u32                     memoryLimit;

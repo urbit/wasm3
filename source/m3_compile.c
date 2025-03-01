@@ -1367,21 +1367,28 @@ _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
     {
         u32 blocks_to_count = depth;
         u32 block_idx = o->block.depth - 1;
-        while ( (block_idx & 31) < blocks_to_count )
+        if ( (block_idx & 31) < blocks_to_count )  // blockIsLoop chunk from LSB to some bit
         {
-            u32 bits = o->blockIsLoop[block_idx >> 5]
-                & (u32)(((u64)1 << (1 + (block_idx & 31))) - 1);
+            {
+                u32 bits = o->blockIsLoop[block_idx >> 5]
+                    & (u32)(((u64)1 << (1 + (block_idx & 31))) - 1);
+                
+                num_loops += __builtin_popcount(bits);
+                blocks_to_count -= (block_idx & 31) + 1;
+                block_idx = (block_idx & ~((u32)31)) - 1;
+            }
             
-            num_loops += __builtin_popcount(bits);
-            
-            blocks_to_count -= (block_idx & 31);
-            blocks_to_count--;
-            
-            block_idx &= ~((u32)31);
-            block_idx--;
+            while (blocks_to_count >= 32)   // full blockIsLoop chunks
+            {
+                u32 bits = o->blockIsLoop[block_idx >> 5];
+                num_loops += __builtin_popcount(bits);
+                blocks_to_count -= 32;
+                block_idx -= 32;
+            }
         }
 
-        if (blocks_to_count)
+
+        if (blocks_to_count)    // blockIsLoop chunk from MSB to some bit
         {
             u32 bits = o->blockIsLoop[block_idx >> 5];
             bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)

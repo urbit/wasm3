@@ -1143,7 +1143,7 @@ M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
             i32 num_blocks = o->block.depth;
             u32 num_loops = 0;
             u32 i = 0;
-            while (num_blocks > 32)
+            while (num_blocks >= 32)
             {
                 u32 bit_array = o->blockIsLoop[i];
                 num_loops += __builtin_popcount(bit_array);
@@ -1153,7 +1153,7 @@ M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
             if (num_blocks > 0)
             {
                 u32 bit_array = o->blockIsLoop[i];
-                u32 mask = (1U << num_blocks) - 1;
+                u32 mask = ((u32)1 << num_blocks) - 1;
                 num_loops += __builtin_popcount(bit_array & mask);
             }
 

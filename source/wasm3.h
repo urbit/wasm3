@@ -185,6 +185,10 @@ d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
+// misc results
+d_m3ErrorConst  (NoSuspensionStack,             "no suspension stack")
+d_m3ErrorConst  (ComputationBlock,              "wasm3 encountered a blocking computation and might perform suspension")
+
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  configuration, can be found in m3_config.h, m3_config_platforms.h, m3_core.h)
@@ -203,7 +207,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
                                                      uint32_t               i_stackSizeInBytes,
-                                                     void *                 i_userdata);
+                                                     void *                 i_userdata,
+                                                     bool                   suspend);
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 

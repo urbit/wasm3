@@ -212,6 +212,11 @@ IM3CodePage                 AcquireCodePageWithCapacity (IM3Runtime io_runtime, 
 void                        ReleaseCodePage             (IM3Runtime io_runtime, IM3CodePage i_codePage);
 M3Result                    EvaluateExpression          (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end);
 
+M3Result    m3_SuspendStackPush64       (IM3Runtime runtime, u64 value);
+M3Result    m3_SuspendStackPop64        (IM3Runtime runtime, u64* out);
+M3Result    m3_SuspendStackPushExtTag   (IM3Runtime runtime);
+M3Result    m3_SuspendStackPopExtTag    (IM3Runtime runtime);
+
 d_m3EndExternC
 
 #endif // m3_env_h

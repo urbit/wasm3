@@ -115,33 +115,54 @@ d_m3BeginExternC
 // PUSH and POP for suspension frames require scalar types
 // push structs by pushing their fields
 // convert pointers to offsets before pushing
+//
+// m3_Call MUST be used as the entry point for function invocation
+// (not m3_CallV, m3_CallArgv, etc)
 
-#define push_suspend(TYPE, VAL)                                     \
-    do {                                                            \
-        u32* edge = &_mem->runtime->edge_suspend;                   \
-        if (*edge + slots_of(TYPE) > _mem->runtime->size_suspend)   \
-        {                                                           \
-            return m3Err_trapStackOverflow;                         \
-        }                                                           \
-        *(TYPE*)(_mem->runtime->stack_suspend + *edge) = (VAL);     \
-        *edge += slots_of(TYPE);                                    \
+#define push_suspend(TYPE, VAL)                                         \
+    do {                                                                \
+        if (_mem->runtime->stack_suspend)                               \
+        {                                                               \
+            u32 edge = _mem->runtime->edge_suspend;                     \
+            if (edge + slots_of(TYPE) > _mem->runtime->size_suspend)    \
+            {                                                           \
+                return m3Err_trapStackOverflow;                         \
+            }                                                           \
+            *(TYPE*)(_mem->runtime->stack_suspend + edge) = (VAL);      \
+            _mem->runtime->edge_suspend += slots_of(TYPE);              \
+        }                                                               \
     } while (0)
 
-#define pop_suspend(TYPE)                                   \
-    ( *(TYPE*)(                                             \
-        _mem->runtime->stack_suspend                        \
-        + (_mem->runtime->edge_suspend -= slots_of(TYPE))   \
-    ) )
+#define pop_suspend(TYPE)                                       \
+    (_mem->runtime->stack_suspend)                              \
+        ? ( *(TYPE*)(                                           \
+            _mem->runtime->stack_suspend                        \
+            + (_mem->runtime->edge_suspend -= slots_of(TYPE))   \
+            ) )                                                 \
+        : (TYPE)POPVAL_SENTINEL
+
+#define peek_suspend(TYPE)                                      \
+    (_mem->runtime->stack_suspend)                              \
+        ? ( *(TYPE*)(                                           \
+            _mem->runtime->stack_suspend                        \
+            + (_mem->runtime->edge_suspend - slots_of(TYPE))    \
+            ) )                                                 \
+        : (TYPE)POPVAL_SENTINEL
+
+#define POPVAL_SENTINEL m3_st_Sentinel
 
 #define push_suspend_ptr(TYPE, VAL, BASE)       \
     push_suspend(TYPE, TO_OFF(TYPE, VAL, BASE))
 
 typedef enum {
-    st_Call,
-    st_Call_indirect,
-    st_CallRaw,
-    st_Entry,
-    st_Loop,
+    m3_st_Sentinel = -1,
+    m3_st_External,
+    m3_st_Call,
+    m3_st_Call_indirect,
+    m3_st_CallRaw,
+    m3_st_Entry,
+    m3_st_Loop,
+    m3_st_m3_Call,
 } SuspendTag;
 
 d_m3RetSig  Call  (d_m3OpSig)
@@ -598,18 +619,21 @@ d_m3Op  (Call)
     push_suspend_ptr(m3stack_t, _sp, base);
     push_suspend(m3reg_t, _r0);
     push_suspend(f64, _fp0);
-    push_suspend(SuspendTag, st_Call);
+    push_suspend(SuspendTag, m3_st_Call);
+    // printf("push Call\r\n");
 
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
     _mem = memory->mallocated;
 
-    if (LIKELY(not r))
+    if (r != m3Err_ComputationBlock)
     {
+        u32 edge_1 = _mem->runtime->edge_suspend;
         SuspendTag t = pop_suspend(SuspendTag);
-        if (t != st_Call)
+        if (t != m3_st_Call && t != m3_st_Sentinel)
         {
             return "Call mismatching tags";
         }
+        // printf("pop Call\r\n");
         pop_suspend(f64);
         pop_suspend(m3reg_t);
         pop_suspend(m3stack_t);
@@ -618,6 +642,12 @@ d_m3Op  (Call)
         pop_suspend(M3MemoryHeader*);
         pop_suspend(m3stack_t);
         pop_suspend(pc_t);
+        u32 edge_2 = _mem->runtime->edge_suspend;
+        // printf("pop Call popped: from %d to %d\r\n", edge_1, edge_2);
+    }
+
+    if (LIKELY(not r))
+    {
         nextOp ();
     }
     else
@@ -663,18 +693,20 @@ d_m3Op  (CallIndirect)
                     push_suspend_ptr(m3stack_t, _sp, base);
                     push_suspend(m3reg_t, _r0);
                     push_suspend(f64, _fp0);
-                    push_suspend(SuspendTag, st_Call_indirect);
+                    push_suspend(SuspendTag, m3_st_Call_indirect);
+                    // printf("push Call_indirect\r\n");
 
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
                     _mem = memory->mallocated;
 
-                    if (LIKELY(not r))
+                    if (r != m3Err_ComputationBlock)
                     {
                         SuspendTag t = pop_suspend(SuspendTag);
-                        if (t != st_Call_indirect)
+                        if (t != m3_st_Call_indirect && t != m3_st_Sentinel)
                         {
                             return "CallIndirect mismatching tags";
                         }
+                        // printf("pop Call_indirect\r\n");
                         pop_suspend(f64);
                         pop_suspend(m3reg_t);
                         pop_suspend(m3stack_t);
@@ -683,6 +715,10 @@ d_m3Op  (CallIndirect)
                         pop_suspend(M3MemoryHeader*);
                         pop_suspend(m3stack_t);
                         pop_suspend(u32);
+                    }
+
+                    if (LIKELY(not r))
+                    {
                         nextOpDirect ();
                     }
                     else
@@ -761,10 +797,12 @@ d_m3Op  (CallRawFunction)
     push_suspend_ptr(IM3Function, ctx.function, base);
     //  ctx.userdata to be filled during replay
     push_suspend_ptr(M3RawCall*, call_p, base_pc);
-    push_suspend(SuspendTag, st_CallRaw);
+    push_suspend(SuspendTag, m3_st_CallRaw);
+    // printf("push CallRaw\r\n");
 
     m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
     runtime->stack = stack_backup;
+    _mem = memory->mallocated;
 
 #if d_m3EnableStrace
     if (UNLIKELY(possible_trap)) {
@@ -780,21 +818,22 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    if (UNLIKELY(possible_trap)) {
-        _mem = memory->mallocated;
-        pushBacktraceFrame ();
-    }
-    else {
-        _mem = memory->mallocated;
+    if (possible_trap != m3Err_ComputationBlock)
+    {
         SuspendTag t = pop_suspend(SuspendTag);
-        if (t != st_CallRaw)
+        if (t != m3_st_CallRaw && t != m3_st_Sentinel)
         {
             return "CallRaw mismatching tags";
         }
+        // printf("pop CallRaw\r\n");
         pop_suspend(M3RawCall*);
         pop_suspend(IM3Function);
         pop_suspend(u8*);
         pop_suspend(u64*);
+    }
+
+    if (UNLIKELY(possible_trap)) {
+        pushBacktraceFrame ();
     }
     forwardTrap (possible_trap);
 }
@@ -941,9 +980,11 @@ d_m3Op  (Entry)
         push_suspend(m3reg_t, _r0);
         push_suspend(f64, _fp0);
         push_suspend_ptr(IM3Memory, memory, base);
-        push_suspend(SuspendTag, st_Entry);
+        push_suspend(SuspendTag, m3_st_Entry);
+        // printf("push Entry\r\n");
 
         m3ret_t r = nextOpImpl ();
+        _mem = memory->mallocated;
 
 #if d_m3EnableStrace >= 2
         trace_rt->callDepth--;
@@ -962,23 +1003,37 @@ d_m3Op  (Entry)
         }
 #endif
 
-        if (UNLIKELY(r)) {
-            _mem = memory->mallocated;
-            fillBacktraceFrame ();
-        }
-        else {
-            _mem = memory->mallocated;
-            SuspendTag t = pop_suspend(SuspendTag);
-            if (t != st_Entry)
+        if (r != m3Err_ComputationBlock)
+        {
+            SuspendTag t;
+            if (r)
+            {
+                while (t = peek_suspend(SuspendTag), t == m3_st_Loop)
+                {
+                    // printf("pop Loop\r\n");
+                    pop_suspend(SuspendTag);
+                    pop_suspend(IM3Memory);
+                    pop_suspend(m3stack_t);
+                    pop_suspend(pc_t);
+                }
+            }
+
+            t = pop_suspend(SuspendTag);
+            if (t != m3_st_Entry && t != m3_st_Sentinel)
             {
                 return "Entry mismatching tags";
             }
+            // printf("pop Entry\r\n");
             pop_suspend(IM3Memory);
             pop_suspend(f64);
             pop_suspend(m3reg_t);
             pop_suspend(M3MemoryHeader*);
             pop_suspend(m3stack_t);
             pop_suspend(pc_t);
+        }
+
+        if (UNLIKELY(r)) {
+            fillBacktraceFrame ();
         }
         forwardTrap (r);
     }
@@ -1004,7 +1059,8 @@ d_m3Op  (Loop)
     push_suspend_ptr(m3stack_t, _sp, base);
     push_suspend_ptr(IM3Memory, memory, base);
     // registers are zeros
-    push_suspend(SuspendTag, st_Loop);
+    push_suspend(SuspendTag, m3_st_Loop);
+    // printf("push Loop\r\n");
 
     do
     {
@@ -1023,8 +1079,10 @@ d_m3Op  (Loop)
         _mem = memory->mallocated;
     }
     while (r == _pc);
-    // we end up here after the end of the loop, but we need to pop the suspension
-    // stack right at the end of the loop, see d_m3Op(SuspendPopLoop) and others
+    // we end up here either after the loops were normally terminated/jumped out
+    // of, or if the computation terminated early due to an error.
+    // In the former case we won't have loop frames to pop. In the latter case
+    // we might have some, and op_Entry will pop them for us.
     //
     forwardTrap (r);
 }
@@ -1304,10 +1362,11 @@ d_m3Op  (BranchIf_r)
         while (num_loops--)
         {
             SuspendTag t = pop_suspend(SuspendTag);
-            if (t != st_Loop)
+            if (t != m3_st_Loop && t != m3_st_Sentinel)
             {
                 return "Loop mismatching tags";
             }
+            // printf("pop Loop\r\n");
             pop_suspend(IM3Memory);
             pop_suspend(m3stack_t);
             pop_suspend(pc_t);
@@ -1329,10 +1388,11 @@ d_m3Op  (BranchIf_s)
         while (num_loops--)
         {
             SuspendTag t = pop_suspend(SuspendTag);
-            if (t != st_Loop)
+            if (t != m3_st_Loop && t != m3_st_Sentinel)
             {
                 return "Loop mismatching tags";
             }
+            // printf("pop Loop\r\n");
             pop_suspend(IM3Memory);
             pop_suspend(m3stack_t);
             pop_suspend(pc_t);
@@ -1395,10 +1455,11 @@ d_m3Op  (ContinueLoopIf)
         while (num_loops--)
         {
             SuspendTag t = pop_suspend(SuspendTag);
-            if (t != st_Loop)
+            if (t != m3_st_Loop && t != m3_st_Sentinel)
             {
                 return "Loop mismatching tags";
             }
+            // printf("pop Loop\r\n");
             pop_suspend(IM3Memory);
             pop_suspend(m3stack_t);
             pop_suspend(pc_t);
@@ -1449,10 +1510,11 @@ d_m3Op  (SuspendPopLoop)
     while (num_loops--)
     {
         SuspendTag t = pop_suspend(SuspendTag);
-        if (t != st_Loop)
+        if (t != m3_st_Loop && t != m3_st_Sentinel)
         {
             return "Loop mismatching tags";
         }
+        // printf("pop Loop\r\n");
         pop_suspend(IM3Memory);
         pop_suspend(m3stack_t);
         pop_suspend(pc_t);

@@ -171,6 +171,7 @@ typedef struct M3Runtime
     m3slot_t *              stack_suspend;
     u32                     edge_suspend;
     u32                     size_suspend;
+    M3Result(*              resume_external     )(M3Result, IM3Runtime);  // [result, runtime, userdata_resume] -> result; external handler
     u8 *                    base;           // start of the memory arena for persistent computations
     u8 *                    base_transient; // start of the memory arena for transient data
     u32                     numStackSlots;
@@ -178,6 +179,7 @@ typedef struct M3Runtime
 
     void *                  userdata;
     void *                  userdata_import;  // for imported functions after suspension, TODO different datas for different functions
+    void *                  userdata_resume;
 
     M3Memory                memory;
     u32                     memoryLimit;

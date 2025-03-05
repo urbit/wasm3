@@ -188,6 +188,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 // misc results
 d_m3ErrorConst  (NoSuspensionStack,             "no suspension stack")
 d_m3ErrorConst  (ComputationBlock,              "wasm3 encountered a blocking computation and might perform suspension")
+d_m3ErrorConst  (SuspensionError,               "error during suspension")
 
 
 //-------------------------------------------------------------------------------------------------------------------------------

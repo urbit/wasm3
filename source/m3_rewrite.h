@@ -1,5 +1,5 @@
-#ifndef m3_validate_h
-#define m3_validate_h
+#ifndef m3_rewrite_h
+#define m3_rewrite_h
 
 #include "wasm3.h"
 #include "m3_core.h"
@@ -42,7 +42,7 @@
             {                                       \
                 TYPE ptr_tmp = PTR;                 \
                 PTR = off;                          \
-                FUNC(ptr_tmp, BASE);                \
+                FUNC(ptr_tmp, BASE, IS_STORE);      \
             }                                       \
         }                                           \
         else                                        \
@@ -51,7 +51,7 @@
             if (ptr != (PTR))                       \
             {                                       \
                 PTR = ptr;                          \
-                FUNC(ptr, BASE);                    \
+                FUNC(ptr, BASE, IS_STORE);          \
             }                                       \
         }                                           \
     } while (0)
@@ -66,4 +66,4 @@
 
 void m3_RewritePointersRuntime(IM3Runtime runtime, u8* base, bool is_subtract);
 
-#endif // m3_validate_h
+#endif // m3_rewrite_h

@@ -71,75 +71,83 @@ void  m3_PrintProfilerInfo  () {}
 M3Result
 m3_SuspendStackPush64(IM3Runtime runtime, u64 value)
 {
+    M3Result result = m3Err_none;
     if (runtime->stack_suspend)
     {
         u32 edge = runtime->edge_suspend;
         if (edge + slots_of(u64) > runtime->size_suspend)
         {
-            return m3Err_trapStackOverflow;
+            result =  m3Err_trapStackOverflow;
         }
-        *(u64*)(runtime->stack_suspend + edge) = value;
-        runtime->edge_suspend += slots_of(u64);
+        else
+        {
+            *(u64*)(runtime->stack_suspend + edge) = value;
+            runtime->edge_suspend += slots_of(u64);
+        }
     }
-    else
-    {
-        return m3Err_NoSuspensionStack;
-    }
+    return result;
 }
 
 M3Result
 m3_SuspendStackPop64(IM3Runtime runtime, u64* out)
 {
+    M3Result result = m3Err_none;
     if (runtime->stack_suspend)
     {
-        u32 edge = runtime->edge_suspend -= slots_of(u64);
-        *out = (*(u64 *)(runtime->stack_suspend + edge));
-        return m3Err_none;
+        if (out)
+        {    
+            u32 edge = runtime->edge_suspend -= slots_of(u64);
+            *out = (*(u64 *)(runtime->stack_suspend + edge));
+        }
+        else
+        {
+            runtime->edge_suspend -= slots_of(u64);
+        }
     }
-    else
+    else if (out)
     {
-        return m3Err_NoSuspensionStack;
+        *out = m3_st_Sentinel;
     }
+    return result;
 }
 
 M3Result
 m3_SuspendStackPushExtTag(IM3Runtime runtime)
 {
+    M3Result result = m3Err_none;
     if (runtime->stack_suspend)
     {
         SuspendTag tag = m3_st_External;
         u32 edge = runtime->edge_suspend;
         if (edge + slots_of(SuspendTag) > runtime->size_suspend)
         {
-            return m3Err_trapStackOverflow;
+            result = m3Err_trapStackOverflow;
         }
-        *(SuspendTag*)(runtime->stack_suspend + edge) = tag;
-        runtime->edge_suspend += slots_of(SuspendTag);
+        else
+        {
+            *(SuspendTag*)(runtime->stack_suspend + edge) = tag;
+            runtime->edge_suspend += slots_of(SuspendTag);
+        }
     }
-    else
-    {
-        return m3Err_NoSuspensionStack;
-    }
+    return result;
 }
 
 M3Result
 m3_SuspendStackPopExtTag(IM3Runtime runtime)
 {
+    M3Result result = m3Err_none;
     if (runtime->stack_suspend)
     {
         u32 edge = runtime->edge_suspend -= slots_of(SuspendTag);
         SuspendTag tag = (*(SuspendTag*)(runtime->stack_suspend + edge));
         if (tag != m3_st_External && tag != m3_st_Sentinel)
         {
-            return "External tag mismatch";
+            result =  "External tag mismatch";
         }
         else
         {
-            return m3Err_none;
+            result = m3Err_none;
         }
     }
-    else
-    {
-        return m3Err_NoSuspensionStack;
-    }
+    return result;
 }

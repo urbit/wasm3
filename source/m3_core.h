@@ -232,6 +232,9 @@ void        m3_FreeImpl             (void * i_ptr);
 void *      m3_MallocTransient      (size_t i_size);
 void *      m3_ReallocTransient     (void *i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_FreeTransientImpl    (void * i_ptr);
+void *      m3_MallocMemory         (size_t i_size);
+void *      m3_ReallocMemory        (void *i_ptr, size_t i_newSize, size_t i_oldSize);
+void        m3_FreeMemoryImpl       (void * i_ptr);
 void *      m3_CopyMem              (const void * i_from, size_t i_size);
 
 #define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc (sizeof (STRUCT))
@@ -239,6 +242,7 @@ void *      m3_CopyMem              (const void * i_from, size_t i_size);
 #define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define     m3_Free(P)                              do { m3_FreeImpl ((void*)(P)); (P) = NULL; } while(0)
 #define     m3_FreeTransient(P)                     do { m3_FreeTransientImpl ((void*)(P)); (P) = NULL; } while(0)
+#define     m3_FreeMemory(P)                        do { m3_FreeMemoryImpl ((void*)(P)); (P) = NULL; } while(0)
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 
 bool        IsIntType               (u8 i_wasmType);

@@ -28,6 +28,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
 
 #if d_m3RecordBacktraces
+# error "no backtraces"
         u32 pageSizeBt = sizeof (M3CodeMappingPage) + sizeof (M3CodeMapEntry) * page->info.numLines;
         page->info.mapping = (M3CodeMappingPage *)m3_MallocTransient (pageSizeBt);
 

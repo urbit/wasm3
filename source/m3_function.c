@@ -121,6 +121,7 @@ void  Function_Release  (IM3Function i_function)
 void  Function_FreeCompiledCode (IM3Function i_function)
 {
 #   if (d_m3EnableCodePageRefCounting)
+#   error "no codepage refcounting"
     {
         i_function->compiled = NULL;
 

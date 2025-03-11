@@ -252,7 +252,7 @@ void  Runtime_Release  (IM3Runtime i_runtime)
 
     m3_Free (i_runtime->stack);
     m3_Free (i_runtime->stack_suspend);
-    m3_Free (i_runtime->memory.mallocated);
+    m3_FreeMemory(i_runtime->memory.mallocated);
 }
 
 
@@ -400,7 +400,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
-        void* newMem = m3_Realloc (memory->mallocated, numBytes, numPreviousBytes);
+        void* newMem = m3_ReallocMemory (memory->mallocated, numBytes, numPreviousBytes);
         _throwifnull(newMem);
 
         memory->mallocated = (M3MemoryHeader*)newMem;

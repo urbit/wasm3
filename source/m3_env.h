@@ -178,7 +178,6 @@ typedef struct M3Runtime
     IM3Function             lastCalled;     // last function that successfully executed
 
     void *                  userdata;
-    void *                  userdata_import;  // for imported functions after suspension, TODO different datas for different functions
     void *                  userdata_resume;
 
     M3Memory                memory;

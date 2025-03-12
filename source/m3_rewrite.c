@@ -75,29 +75,8 @@ RewritePointersMemoryHeader(M3MemoryHeader* h, u8* base, bool is_store)
 static void
 RewritePointersMemory(M3Memory* m, u8* base, bool is_store)
 {
-    // REWRITE_F(M3MemoryHeader *, m->mallocated, base, is_store,
-    //     RewritePointersMemoryHeader);
-    do {
-        if (is_store)
-        {
-            M3MemoryHeader * off = TO_OFF(M3MemoryHeader *, m->mallocated, base);
-            if (off != (m->mallocated))
-            {
-                M3MemoryHeader * ptr_tmp = m->mallocated;
-                m->mallocated = off;
-                RewritePointersMemoryHeader(ptr_tmp, base, is_store);
-            }
-        }
-        else
-        {
-            M3MemoryHeader * ptr = TO_PTR(M3MemoryHeader *, m->mallocated, base);
-            if (ptr != (m->mallocated))
-            {
-                m->mallocated = ptr;
-                RewritePointersMemoryHeader(ptr, base, is_store);
-            }
-        }
-    } while (0);
+    REWRITE_F(M3MemoryHeader *, m->mallocated, base, is_store,
+        RewritePointersMemoryHeader);
 }
 
 
@@ -218,30 +197,8 @@ m3_RewritePointersRuntime(IM3Runtime r, u8* base, bool is_store)
         /**/
         memset(&r->error, 0, sizeof(r->error));
     }
-    // REWRITE_F(IM3Environment, r->environment, base, is_store,
-    //     RewritePointersEnvironment);
-    do {
-        if (is_store)
-        {
-            IM3Environment off = TO_OFF(IM3Environment, r->environment, base);
-            if (off != (r->environment))
-            {
-                IM3Environment ptr_tmp = r->environment;
-                r->environment = off;
-                RewritePointersEnvironment(ptr_tmp, base, is_store);
-            }
-        }
-        else
-        {
-            IM3Environment ptr = NULL;
-            ptr = TO_PTR(IM3Environment, r->environment, base);
-            if (ptr != (r->environment))
-            {
-                r->environment = ptr;
-                RewritePointersEnvironment(ptr, base, is_store);
-            }
-        }
-    } while (0);
+    REWRITE_F(IM3Environment, r->environment, base, is_store,
+        RewritePointersEnvironment);
     /* Code pages are allocated transiently */
     NULLIFY_STORE(r->pagesOpen, is_store);
     NULLIFY_STORE(r->pagesFull, is_store);
@@ -255,6 +212,5 @@ m3_RewritePointersRuntime(IM3Runtime r, u8* base, bool is_store)
     REWRITE(IM3Function, r->lastCalled, base, is_store);
     /* user is responsible for his data */
     NULLIFY_STORE(r->userdata, is_store);
-    NULLIFY_STORE(r->userdata_import, is_store);
     RewritePointersMemory(&r->memory, base, is_store);
 }

@@ -5,7 +5,8 @@
 #include "m3_core.h"
 
 
-// offsets encoded as pointers have their top bit set
+// offsets encoded as pointers have their top bit set to 1
+// base ptr must be 16 byte aligned
 
 #if __SIZEOF_POINTER__ != 8
     #error "todo portable macros"

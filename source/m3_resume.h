@@ -4,7 +4,6 @@
 #include "wasm3.h"
 #include "m3_core.h"
 #include "m3_exec.h"
-#include "m3_exception.h"
 #include "m3_rewrite.h"
 
 #define r_pop_suspend(TYPE)                             \
@@ -22,5 +21,7 @@ r_pop_suspend_ptr(IM3Runtime runtime, u8* base)
     void* offset = r_pop_suspend(void*);
     return TO_PTR(void*, offset, base);
 }
+
+M3Result m3_Resume(IM3Runtime runtime);
 
 #endif // m3_resume_h

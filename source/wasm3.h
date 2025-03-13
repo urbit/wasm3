@@ -231,9 +231,15 @@ d_m3ErrorConst  (SuspensionError,               "error during suspension")
                                                      void  (* free_fn)(void*),
                                                      void* (* realloc_fn)(void*, size_t));
                                                     
-    M3Result            m3_SetMemoryAllocators   (void* (* calloc_fn)(size_t, size_t),
+    M3Result            m3_SetMemoryAllocators      (void* (* calloc_fn)(size_t, size_t),
                                                      void  (* free_fn)(void*),
                                                      void* (* realloc_fn)(void*, size_t));
+
+    void                m3_RewritePointersRuntime   (IM3Runtime runtime,
+                                                     uint8_t* base,
+                                                     bool is_subtract);
+
+    M3Result            m3_Resume                   (IM3Runtime runtime);
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -281,6 +287,7 @@ d_m3ErrorConst  (SuspensionError,               "error during suspension")
     const char*         m3_GetModuleName            (IM3Module i_module);
     void                m3_SetModuleName            (IM3Module i_module, const char* name);
     IM3Runtime          m3_GetModuleRuntime         (IM3Module i_module);
+    M3Result            m3_ValidateModule           (IM3Module i_module);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  globals

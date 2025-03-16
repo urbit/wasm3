@@ -35,7 +35,7 @@ RewritePointersFunction(IM3Function f, u8* base, bool is_store)
     REWRITE(IM3FuncType, f->funcType, base, is_store);
     NULLIFY_STORE(f->compiled, is_store);
     nullify_codepagerefs;
-    REWRITE(void*, f->constants, base, is_store);
+    NULLIFY_STORE(f->constants, is_store);
 }
 
 static void
@@ -66,17 +66,9 @@ RewritePointersFuncType(IM3FuncType t, u8* base, bool is_store)
 }
 
 static void
-RewritePointersMemoryHeader(M3MemoryHeader* h, u8* base, bool is_store)
-{
-    REWRITE(IM3Runtime, h->runtime, base, is_store);
-    REWRITE(void*, h->maxStack, base, is_store);
-}
-
-static void
 RewritePointersMemory(M3Memory* m, u8* base, bool is_store)
 {
-    REWRITE_F(M3MemoryHeader *, m->mallocated, base, is_store,
-        RewritePointersMemoryHeader);
+    NULLIFY_STORE(m->mallocated, is_store);
 }
 
 

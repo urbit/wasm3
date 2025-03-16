@@ -235,7 +235,7 @@ void        m3_FreeTransientImpl    (void * i_ptr);
 void *      m3_MallocMemory         (size_t i_size);
 void *      m3_ReallocMemory        (void *i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_FreeMemoryImpl       (void * i_ptr);
-void *      m3_CopyMem              (const void * i_from, size_t i_size);
+void *      m3_CopyMemTransient     (const void * i_from, size_t i_size);
 
 #define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc (sizeof (STRUCT))
 #define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))

@@ -262,9 +262,9 @@ void *  m3_ReallocMemory  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 #endif
 
-void *  m3_CopyMem  (const void * i_from, size_t i_size)
+void *  m3_CopyMemTransient  (const void * i_from, size_t i_size)
 {
-    void * ptr = m3_Malloc(i_size);
+    void * ptr = m3_MallocTransient(i_size);
     if (ptr) {
         memcpy (ptr, i_from, i_size);
     }

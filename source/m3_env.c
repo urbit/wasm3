@@ -910,7 +910,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     u8* base = runtime->base;
     u8* base_pc = runtime->base_transient;
     M3MemoryHeader* _mem = runtime->memory.mallocated;
-    op_push_suspend_ptr(i_function, base_pc);
+    op_push_suspend_ptr(i_function, base);
     op_push_suspend(SuspendTag, m3_st_m3_Call);
     // printf("push m3_call\r\n");
 

@@ -12,7 +12,10 @@ m3_Resume(IM3Runtime runtime)
     
     M3Result result = m3Err_none;
     
-    while (runtime->edge_suspend)
+    while (runtime->edge_suspend
+        && result != m3Err_ComputationBlock
+        && result != m3Err_SuspensionError
+    )
     {
         SuspendTag t = r_peek_suspend(SuspendTag);
         switch (t)
@@ -32,9 +35,7 @@ m3_Resume(IM3Runtime runtime)
                 // just pop the frame and go on, "returning" the result
                 // to the next frame
                 //
-                if (result
-                    && result != m3Err_ComputationBlock
-                    && result != m3Err_SuspensionError)
+                if (result)
                 {
                     u8* base = runtime->base;
                     u8* base_pc = runtime->base_transient;
@@ -45,13 +46,6 @@ m3_Resume(IM3Runtime runtime)
                     r_pop_suspend_ptr(runtime, base);
                     r_pop_suspend_ptr(runtime, base_pc);
                     r_pop_suspend_ptr(runtime, base);
-                }
-                // either new block or suspension error:
-                // leave everything as is, return
-                //
-                else if (result)
-                {
-                    return result;
                 }
                 // pop the frame, treat the call, "return" the result
                 // to the next frame
@@ -75,9 +69,7 @@ m3_Resume(IM3Runtime runtime)
             }
             case m3_st_Call_indirect:
             {
-                if (result
-                    && result != m3Err_ComputationBlock
-                    && result != m3Err_SuspensionError)
+                if (result)
                 {
                     u8* base = runtime->base;
                     u8* base_pc = runtime->base_transient;
@@ -88,10 +80,6 @@ m3_Resume(IM3Runtime runtime)
                     r_pop_suspend_ptr(runtime, base);
                     r_pop_suspend_ptr(runtime, base_pc);
                     r_pop_suspend_ptr(runtime, base);
-                }
-                else if (result)
-                {
-                    return result;
                 }
                 else
                 {
@@ -112,80 +100,52 @@ m3_Resume(IM3Runtime runtime)
             }
             case m3_st_CallRaw:
             {
-                if (result != m3Err_ComputationBlock
-                    && result != m3Err_SuspensionError)
-                {
-                    // we always restore backed up stack if we are not blocked
-                    //
-                    r_pop_suspend(SuspendTag);
-                    void* stack_backup = r_pop_suspend_ptr(
-                        runtime,
-                        runtime->base
-                    );
-                    runtime->stack = stack_backup;
-                }
-                else
-                {
-                    return result;
-                }
+                // we always restore backed up stack if we are not blocked
+                //
+                r_pop_suspend(SuspendTag);
+                void* stack_backup = r_pop_suspend_ptr(
+                    runtime,
+                    runtime->base
+                );
+                runtime->stack = stack_backup;
                 break;
             }
             case m3_st_Entry:
             {
-                // trivial frame, nothing to handle
-                //
-                if (result != m3Err_ComputationBlock
-                    && result != m3Err_SuspensionError)
-                {
-                    r_pop_suspend(SuspendTag);
-                }
-                else
-                {
-                    return result;
-                }
+                r_pop_suspend(SuspendTag);
                 break;
             }
             case m3_st_Loop:
             {
-                if (result == m3Err_ComputationBlock
-                    || result == m3Err_SuspensionError)
+                // non empty result in case of op_Loop
+                // may also be loop's label
+                //
+                u8* base = runtime->base;
+                u8* base_pc = runtime->base_transient;
+
+                r_pop_suspend(SuspendTag);
+                IM3Memory memory = r_pop_suspend_ptr(runtime, base);
+                m3stack_t _sp = r_pop_suspend_ptr(runtime, base);
+                pc_t _pc = r_pop_suspend_ptr(runtime, base_pc);
+
+                M3MemoryHeader* _mem = memory->mallocated;
+                m3ret_t r = result;
+
+                // while instead of do..while because we might
+                // already be done with the loop
+                //
+                while (r == _pc)
                 {
-                    return result;
+                    r = ((IM3Operation)(*_pc))(_pc + 1, _sp, _mem, 0, 0);
+                    _mem = memory->mallocated;
                 }
-                else
-                {
-                    // non empty result in case of op_Loop
-                    // may also be loop's label
-                    //
-                    u8* base = runtime->base;
-                    u8* base_pc = runtime->base_transient;
 
-                    r_pop_suspend(SuspendTag);
-                    IM3Memory memory = r_pop_suspend_ptr(runtime, base);
-                    m3stack_t _sp = r_pop_suspend_ptr(runtime, base);
-                    pc_t _pc = r_pop_suspend_ptr(runtime, base_pc);
-
-                    M3MemoryHeader* _mem = memory->mallocated;
-                    m3ret_t r = result;
-
-                    // while instead of do..while because we might
-                    // already be done with the loop
-                    //
-                    while (r == _pc)
-                    {
-                        r = ((IM3Operation)(*_pc))(_pc + 1, _sp, _mem, 0, 0);
-                        _mem = memory->mallocated;
-                    }
-
-                    result = r;
-                }
+                result = r;
                 break;
             }
             case m3_st_m3_Call:
             {
-                if (result
-                    && result != m3Err_ComputationBlock
-                    && result != m3Err_SuspensionError)
+                if (result)
                 {
                     u8* base = runtime->base;
                     u8* base_pc = runtime->base_transient;
@@ -194,10 +154,6 @@ m3_Resume(IM3Runtime runtime)
                     r_pop_suspend_ptr(runtime, base);
 
                     runtime->lastCalled = NULL;
-                }
-                else if (result)
-                {
-                    return result;
                 }
                 else
                 {

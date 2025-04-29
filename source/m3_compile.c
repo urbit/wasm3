@@ -1365,6 +1365,16 @@ _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
     u32 num_loops = 0;
     if (o->block.depth > 0 && depth > 0)
     {
+        // u32 blocks_to_count = target;
+        // u32 num_blocks = o->block.depth;
+        // while (blocks_to_count--)
+        // {
+        //     num_blocks--;
+        //     if (o->blockIsLoop[num_blocks >> 5] & (1U << (num_blocks & 31)))
+        //     {
+        //         num_loops++;
+        //     }
+        // }
         u32 blocks_to_count = depth;
         u32 block_idx = o->block.depth - 1;
         if ( (block_idx & 31) < blocks_to_count )  // blockIsLoop chunk from LSB to some bit
@@ -1388,11 +1398,12 @@ _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
         }
 
 
-        if (blocks_to_count)    // blockIsLoop chunk from MSB to some bit
+        if (blocks_to_count)    // blockIsLoop partial chunk
         {
             u32 bits = o->blockIsLoop[block_idx >> 5];
+            u32 low_bits_mask_out = 1 + (block_idx & 31) - blocks_to_count;
             bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)
-                ^ (((u32)1 << (1 + (block_idx & 31) - blocks_to_count)) - 1);
+                ^ (((u32)1 << low_bits_mask_out) - 1);
             
             num_loops += __builtin_popcount(bits);
         }
@@ -1560,16 +1571,45 @@ _       (ReadLEB_u32 (& target, & o->wasm, o->wasmEnd));
         u32 num_loops = 0;
         if (o->block.depth > 0 && target > 0)
         {
+            // u32 blocks_to_count = target;
+            // u32 num_blocks = o->block.depth;
+            // while (blocks_to_count--)
+            // {
+            //     num_blocks--;
+            //     if (o->blockIsLoop[num_blocks >> 5] & (1U << (num_blocks & 31)))
+            //     {
+            //         num_loops++;
+            //     }
+            // }
             u32 blocks_to_count = target;
-            u32 num_blocks = o->block.depth;
-            /* TODO optimize with masking and popcnt */
-            while (blocks_to_count--)
+            u32 block_idx = o->block.depth - 1;
+            if ( (block_idx & 31) < blocks_to_count )  // blockIsLoop chunk from LSB to some bit
             {
-                num_blocks--;
-                if (o->blockIsLoop[num_blocks >> 5] & (1U << (num_blocks & 31)))
                 {
-                    num_loops++;
+                    u32 bits = o->blockIsLoop[block_idx >> 5]
+                        & (u32)(((u64)1 << (1 + (block_idx & 31))) - 1);
+                    
+                    num_loops += __builtin_popcount(bits);
+                    blocks_to_count -= (block_idx & 31) + 1;
+                    block_idx = (block_idx & ~((u32)31)) - 1;
                 }
+
+                while (blocks_to_count >= 32)   // full blockIsLoop chunks
+                {
+                    u32 bits = o->blockIsLoop[block_idx >> 5];
+                    num_loops += __builtin_popcount(bits);
+                    blocks_to_count -= 32;
+                    block_idx -= 32;
+                }
+            }
+            if (blocks_to_count)    // blockIsLoop partial chunk
+            {
+                u32 bits = o->blockIsLoop[block_idx >> 5];
+                u32 low_bits_mask_out = 1 + (block_idx & 31) - blocks_to_count;
+                bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)
+                    ^ (((u32)1 << low_bits_mask_out) - 1);
+                
+                num_loops += __builtin_popcount(bits);
             }
         }
 

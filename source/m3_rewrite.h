@@ -15,12 +15,12 @@
 #define TO_OFF(TYPE, PTR, BASE)                                                 \
     ( (!(PTR) || ((uintptr_t)(PTR) & (1ULL << 63)))                             \
         ? (PTR)                                                                 \
-        : (TYPE)(((u8*)(PTR) - (u8*)(BASE)) + (u8*)((uintptr_t)1ULL << 63)) )
+        : (TYPE)(((u8*)(PTR) - (u8*)(BASE)) + (u8*)((uintptr_t)(1ULL << 63))) )
 
 #define TO_PTR(TYPE, PTR, BASE)                                                 \
     ( (!(PTR) || !((uintptr_t)(PTR) & (1ULL << 63)))                            \
         ? (PTR)                                                                 \
-        : (TYPE)(((u8*)(PTR) - (u8*)((uintptr_t)1ULL << 63)) + (u8*)(BASE)) )
+        : (TYPE)(((u8*)(PTR) - (u8*)((uintptr_t)(1ULL << 63))) + (u8*)(BASE)) )
 
 #define REWRITE(TYPE, PTR, BASE, IS_STORE)  \
     do {                                    \

@@ -162,7 +162,6 @@ typedef enum {
     m3_st_Call,
     m3_st_Call_indirect,
     m3_st_CallRaw,
-    m3_st_Entry,
     m3_st_Loop,
     m3_st_m3_Call,
 } SuspendTag;
@@ -613,7 +612,6 @@ d_m3Op  (Call)
 
     u8* base = _mem->runtime->base;
     u8* base_pc = _mem->runtime->base_transient;
-    op_push_suspend_ptr(memory, base);
     op_push_suspend_ptr(_pc, base_pc);
     op_push_suspend_ptr(_sp, base);
     op_push_suspend(m3reg_t, _r0);
@@ -637,7 +635,6 @@ d_m3Op  (Call)
         op_pop_suspend(m3reg_t);
         op_pop_suspend_ptr(m3stack_t);
         op_pop_suspend_ptr(pc_t);
-        op_pop_suspend_ptr(IM3Memory);
         u32 edge_2 = _mem->runtime->edge_suspend;
         // printf("pop Call popped: from %d to %d\r\n", edge_1, edge_2);
     }
@@ -682,7 +679,6 @@ d_m3Op  (CallIndirect)
                     u8* base = _mem->runtime->base;
                     u8* base_pc = _mem->runtime->base_transient;
 
-                    op_push_suspend_ptr(memory, base);
                     op_push_suspend_ptr(_pc, base_pc);
                     op_push_suspend_ptr(_sp, base);
                     op_push_suspend(m3reg_t, _r0);
@@ -705,7 +701,6 @@ d_m3Op  (CallIndirect)
                         op_pop_suspend(m3reg_t);
                         op_pop_suspend_ptr(m3stack_t);
                         op_pop_suspend_ptr(pc_t);
-                        op_pop_suspend_ptr(IM3Memory);
                         
                     }
 
@@ -957,8 +952,6 @@ d_m3Op  (Entry)
         trace_rt->callDepth++;
 #endif
 
-        op_push_suspend(SuspendTag, m3_st_Entry);
-        // printf("push Entry\r\n");
 
         m3ret_t r = nextOpImpl ();
         _mem = memory->mallocated;
@@ -979,29 +972,6 @@ d_m3Op  (Entry)
             }
         }
 #endif
-
-        if (r != m3Err_ComputationBlock && r != m3Err_SuspensionError)
-        {
-            SuspendTag t;
-            if (r)
-            {
-                while (t = op_peek_suspend(SuspendTag), t == m3_st_Loop)
-                {
-                    // printf("pop Loop\r\n");
-                    op_pop_suspend(SuspendTag);
-                    op_pop_suspend_ptr(IM3Memory);
-                    op_pop_suspend_ptr(m3stack_t);
-                    op_pop_suspend_ptr(pc_t);
-                }
-            }
-
-            t = op_pop_suspend(SuspendTag);
-            if (t != m3_st_Entry && t != m3_st_Sentinel)
-            {
-                return "Entry mismatching tags";
-            }
-            // printf("pop Entry\r\n");
-        }
 
         if (UNLIKELY(r)) {
             fillBacktraceFrame ();
@@ -1028,7 +998,6 @@ d_m3Op  (Loop)
     u8* base_pc = _mem->runtime->base_transient;
     op_push_suspend_ptr(_pc, base_pc);
     op_push_suspend_ptr(_sp, base);
-    op_push_suspend_ptr(memory, base);
     // registers are zeros
     op_push_suspend(SuspendTag, m3_st_Loop);
     // printf("push Loop\r\n");
@@ -1050,11 +1019,18 @@ d_m3Op  (Loop)
         _mem = memory->mallocated;
     }
     while (r == _pc);
-    // we end up here either after the loops were normally terminated/jumped out
-    // of, or if the computation terminated early due to an error.
-    // In the former case we won't have loop frames to pop. In the latter case
-    // we might have some, and op_Entry will pop them for us.
-    //
+
+    if (r != m3Err_ComputationBlock && r != m3Err_SuspensionError)
+    {
+        SuspendTag t = op_pop_suspend(SuspendTag);
+        if (t != m3_st_Loop && t != m3_st_Sentinel)
+        {
+            return "Loop mismatching tags";
+        }
+        op_pop_suspend_ptr(m3stack_t);
+        op_pop_suspend_ptr(pc_t);
+    }
+    
     forwardTrap (r);
 }
 
@@ -1325,23 +1301,10 @@ d_m3Op  (Return)
 d_m3Op  (BranchIf_r)
 {
     i32 condition   = (i32) _r0;
-    u32 num_loops   = immediate(u32);
     pc_t branch     = immediate (pc_t);
 
     if (condition)
     {
-        while (num_loops--)
-        {
-            SuspendTag t = op_pop_suspend(SuspendTag);
-            if (t != m3_st_Loop && t != m3_st_Sentinel)
-            {
-                return "Loop mismatching tags";
-            }
-            // printf("pop Loop\r\n");
-            op_pop_suspend_ptr(IM3Memory);
-            op_pop_suspend_ptr(m3stack_t);
-            op_pop_suspend_ptr(pc_t);
-        }
         jumpOp (branch);
     }
     else nextOp ();
@@ -1350,24 +1313,11 @@ d_m3Op  (BranchIf_r)
 
 d_m3Op  (BranchIf_s)
 {
-    u32 num_loops   = immediate(u32);
     i32 condition   = slot (i32);
     pc_t branch     = immediate (pc_t);
 
     if (condition)
     {
-        while (num_loops--)
-        {
-            SuspendTag t = op_pop_suspend(SuspendTag);
-            if (t != m3_st_Loop && t != m3_st_Sentinel)
-            {
-                return "Loop mismatching tags";
-            }
-            // printf("pop Loop\r\n");
-            op_pop_suspend_ptr(IM3Memory);
-            op_pop_suspend_ptr(m3stack_t);
-            op_pop_suspend_ptr(pc_t);
-        }
         jumpOp (branch);
     }
     else nextOp ();
@@ -1419,22 +1369,9 @@ d_m3Op  (ContinueLoopIf)
 {
     i32 condition = (i32) _r0;
     void * loopId = immediate (void *);
-    u32 num_loops = immediate(u32);
 
     if (condition)
     {
-        while (num_loops--)
-        {
-            SuspendTag t = op_pop_suspend(SuspendTag);
-            if (t != m3_st_Loop && t != m3_st_Sentinel)
-            {
-                return "Loop mismatching tags";
-            }
-            // printf("pop Loop\r\n");
-            op_pop_suspend_ptr(IM3Memory);
-            op_pop_suspend_ptr(m3stack_t);
-            op_pop_suspend_ptr(pc_t);
-        }
         return loopId;
     }
     else nextOp ();
@@ -1473,25 +1410,6 @@ d_m3Op  (End)
 {
     m3StackCheck();
     return m3Err_none;
-}
-
-d_m3Op  (SuspendPopLoop)
-{
-    u32 num_loops = immediate(u32);
-    while (num_loops--)
-    {
-        SuspendTag t = op_pop_suspend(SuspendTag);
-        if (t != m3_st_Loop && t != m3_st_Sentinel)
-        {
-            return "Loop mismatching tags";
-        }
-        // printf("pop Loop\r\n");
-        op_pop_suspend_ptr(IM3Memory);
-        op_pop_suspend_ptr(m3stack_t);
-        op_pop_suspend_ptr(pc_t);
-    }
-
-    nextOp ();
 }
 
 

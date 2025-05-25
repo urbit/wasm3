@@ -45,7 +45,6 @@ m3_Resume(IM3Runtime runtime)
                     r_pop_suspend(m3reg_t);
                     r_pop_suspend_ptr(runtime, base);
                     r_pop_suspend_ptr(runtime, base_pc);
-                    r_pop_suspend_ptr(runtime, base);
                 }
                 // pop the frame, treat the call, "return" the result
                 // to the next frame
@@ -60,9 +59,8 @@ m3_Resume(IM3Runtime runtime)
                     m3reg_t _r0 = r_pop_suspend(m3reg_t);
                     m3stack_t _sp = r_pop_suspend_ptr(runtime, base);
                     pc_t _pc = r_pop_suspend_ptr(runtime, base_pc);
-                    IM3Memory memory = r_pop_suspend_ptr(runtime, base);
 
-                    M3MemoryHeader* _mem = memory->mallocated;
+                    M3MemoryHeader* _mem = runtime->memory.mallocated;
                     result = nextOpImpl();
                 }
                 break;
@@ -79,7 +77,6 @@ m3_Resume(IM3Runtime runtime)
                     r_pop_suspend(m3reg_t);
                     r_pop_suspend_ptr(runtime, base);
                     r_pop_suspend_ptr(runtime, base_pc);
-                    r_pop_suspend_ptr(runtime, base);
                 }
                 else
                 {
@@ -91,9 +88,8 @@ m3_Resume(IM3Runtime runtime)
                     m3reg_t _r0 = r_pop_suspend(m3reg_t);
                     m3stack_t _sp = r_pop_suspend_ptr(runtime, base);
                     pc_t _pc = r_pop_suspend_ptr(runtime, base_pc);
-                    IM3Memory memory = r_pop_suspend_ptr(runtime, base);
                     
-                    M3MemoryHeader* _mem = memory->mallocated;
+                    M3MemoryHeader* _mem = runtime->memory.mallocated;
                     result = nextOpImpl();
                 }
                 break;
@@ -110,11 +106,6 @@ m3_Resume(IM3Runtime runtime)
                 runtime->stack = stack_backup;
                 break;
             }
-            case m3_st_Entry:
-            {
-                r_pop_suspend(SuspendTag);
-                break;
-            }
             case m3_st_Loop:
             {
                 // non empty result in case of op_Loop
@@ -124,20 +115,40 @@ m3_Resume(IM3Runtime runtime)
                 u8* base_pc = runtime->base_transient;
 
                 r_pop_suspend(SuspendTag);
-                IM3Memory memory = r_pop_suspend_ptr(runtime, base);
                 m3stack_t _sp = r_pop_suspend_ptr(runtime, base);
                 pc_t _pc = r_pop_suspend_ptr(runtime, base_pc);
 
-                M3MemoryHeader* _mem = memory->mallocated;
+                M3MemoryHeader* _mem = runtime->memory.mallocated;
                 m3ret_t r = result;
-
-                // while instead of do..while because we might
-                // already be done with the loop
+                
+                //  we might get blocked again in the loop, so restore the
+                //  frame if reenter
                 //
-                while (r == _pc)
+                if (r == _pc)
                 {
-                    r = ((IM3Operation)(*_pc))(_pc + 1, _sp, _mem, 0, 0);
-                    _mem = memory->mallocated;
+                    r_push_suspend_ptr(_pc, base_pc);
+                    r_push_suspend_ptr(_sp, base);
+                    r_push_suspend(SuspendTag, m3_st_Loop);
+                    
+                    do
+                    {
+                        r = ((IM3Operation)(*_pc))(_pc + 1, _sp, _mem, 0, 0);
+                        M3MemoryHeader* _mem = runtime->memory.mallocated;
+                    }
+                    while (r == _pc);
+                    
+
+                    //  optz: we might know that we are done with the loop,
+                    //  pop the frame immediately if so
+                    //
+                    result = r;
+                    if (result != m3Err_ComputationBlock 
+                        && result != m3Err_SuspensionError)
+                    {
+                        r_pop_suspend(SuspendTag);
+                        r_pop_suspend_ptr(runtime, base);
+                        r_pop_suspend_ptr(runtime, base_pc);
+                    }
                 }
 
                 result = r;

@@ -1138,29 +1138,6 @@ M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 
     if (not IsStackPolymorphic (o))
     {
-        if (o->block.depth > 0)
-        {
-            i32 num_blocks = o->block.depth;
-            u32 num_loops = 0;
-            u32 i = 0;
-            while (num_blocks >= 32)
-            {
-                u32 bit_array = o->blockIsLoop[i];
-                num_loops += __builtin_popcount(bit_array);
-                num_blocks -= 32;
-                i++;
-            }
-            if (num_blocks > 0)
-            {
-                u32 bit_array = o->blockIsLoop[i];
-                u32 mask = ((u32)1 << num_blocks) - 1;
-                num_loops += __builtin_popcount(bit_array & mask);
-            }
-
-            _( EmitOp(o, op_SuspendPopLoop) );
-            EmitConstant32 (o, num_loops);
-        }
-        
         IM3CompilationScope functionScope;
 _       (GetBlockScope (o, & functionScope, o->block.depth));
 
@@ -1211,11 +1188,6 @@ _               (ReturnValues (o, & o->block, false));
 
 _           (EmitOp (o, op_Return));
         }
-    }
-    else if (o->block.opcode == c_waOp_loop)
-    {
-        _( EmitOp(o, op_SuspendPopLoop) );
-        EmitConstant32 (o, 1);
     }
 
     _catch: return result;
@@ -1362,53 +1334,6 @@ M3Result  Compile_Branch  (IM3Compilation o, m3opcode_t i_opcode)
     u32 depth;
 _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
 
-    u32 num_loops = 0;
-    if (o->block.depth > 0 && depth > 0)
-    {
-        // u32 blocks_to_count = target;
-        // u32 num_blocks = o->block.depth;
-        // while (blocks_to_count--)
-        // {
-        //     num_blocks--;
-        //     if (o->blockIsLoop[num_blocks >> 5] & (1U << (num_blocks & 31)))
-        //     {
-        //         num_loops++;
-        //     }
-        // }
-        u32 blocks_to_count = depth;
-        u32 block_idx = o->block.depth - 1;
-        if ( (block_idx & 31) < blocks_to_count )  // blockIsLoop chunk from LSB to some bit
-        {
-            {
-                u32 bits = o->blockIsLoop[block_idx >> 5]
-                    & (u32)(((u64)1 << (1 + (block_idx & 31))) - 1);
-                
-                num_loops += __builtin_popcount(bits);
-                blocks_to_count -= (block_idx & 31) + 1;
-                block_idx = (block_idx & ~((u32)31)) - 1;
-            }
-            
-            while (blocks_to_count >= 32)   // full blockIsLoop chunks
-            {
-                u32 bits = o->blockIsLoop[block_idx >> 5];
-                num_loops += __builtin_popcount(bits);
-                blocks_to_count -= 32;
-                block_idx -= 32;
-            }
-        }
-
-
-        if (blocks_to_count)    // blockIsLoop partial chunk
-        {
-            u32 bits = o->blockIsLoop[block_idx >> 5];
-            u32 low_bits_mask_out = 1 + (block_idx & 31) - blocks_to_count;
-            bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)
-                ^ (((u32)1 << low_bits_mask_out) - 1);
-            
-            num_loops += __builtin_popcount(bits);
-        }
-    }
-
     IM3CompilationScope scope;
 _   (GetBlockScope (o, & scope, depth));
 
@@ -1428,11 +1353,6 @@ _               (EmitSlotNumOfStackTopAndPop (o));
 
 _               (ResolveBlockResults (o, scope, /* isBranch: */ true));
 
-                if (num_loops)
-                {
-                    _( EmitOp(o, op_SuspendPopLoop) );
-                    EmitConstant32 (o, num_loops);
-                }
 _               (EmitOp (o, op_ContinueLoop));
                 EmitPointer (o, scope->pc);
 
@@ -1446,18 +1366,12 @@ _               (PopType (o, c_m3Type_i32));
 
 _               (EmitOp (o, op_ContinueLoopIf));
                 EmitPointer (o, scope->pc);
-                EmitConstant32 (o, num_loops);
             }
 
 //          dump_type_stack(o);
         }
         else // is c_waOp_branch
         {
-            if (num_loops)
-            {
-                _( EmitOp(o, op_SuspendPopLoop) );
-                EmitConstant32 (o, num_loops);
-            }
     _       (EmitOp (o, op_ContinueLoop));
             EmitPointer (o, scope->pc);
             o->block.isPolymorphic = true;
@@ -1487,7 +1401,6 @@ _               (EmitOp (o, op_ContinueLoopIf));
                 IM3Operation op = IsStackTopInRegister (o) ? op_BranchIf_r : op_BranchIf_s;
 
     _           (EmitOp (o, op));
-                EmitConstant32 (o, num_loops);
     _           (EmitSlotNumOfStackTopAndPop (o)); // condition
 
                 EmitPatchingBranchPointer (o, scope);
@@ -1507,20 +1420,7 @@ _               (EmitOp (o, op_Return));
             else
             {
 _               (ResolveBlockResults (o, scope, true));
-                if (num_loops)
-                {
-                    _( EmitOp(o, op_SuspendPopLoop) );
-                    EmitConstant32 (o, num_loops);
-                }
 _               (EmitPatchingBranch (o, scope));
-            }
-        }
-        else
-        {
-            if (num_loops)
-            {
-                _( EmitOp(o, op_SuspendPopLoop) );
-                EmitConstant32 (o, num_loops);
             }
         }
 
@@ -1568,51 +1468,6 @@ _   (EmitOp (o, op_BranchTable));
         u32 target;
 _       (ReadLEB_u32 (& target, & o->wasm, o->wasmEnd));
 
-        u32 num_loops = 0;
-        if (o->block.depth > 0 && target > 0)
-        {
-            // u32 blocks_to_count = target;
-            // u32 num_blocks = o->block.depth;
-            // while (blocks_to_count--)
-            // {
-            //     num_blocks--;
-            //     if (o->blockIsLoop[num_blocks >> 5] & (1U << (num_blocks & 31)))
-            //     {
-            //         num_loops++;
-            //     }
-            // }
-            u32 blocks_to_count = target;
-            u32 block_idx = o->block.depth - 1;
-            if ( (block_idx & 31) < blocks_to_count )  // blockIsLoop chunk from LSB to some bit
-            {
-                {
-                    u32 bits = o->blockIsLoop[block_idx >> 5]
-                        & (u32)(((u64)1 << (1 + (block_idx & 31))) - 1);
-                    
-                    num_loops += __builtin_popcount(bits);
-                    blocks_to_count -= (block_idx & 31) + 1;
-                    block_idx = (block_idx & ~((u32)31)) - 1;
-                }
-
-                while (blocks_to_count >= 32)   // full blockIsLoop chunks
-                {
-                    u32 bits = o->blockIsLoop[block_idx >> 5];
-                    num_loops += __builtin_popcount(bits);
-                    blocks_to_count -= 32;
-                    block_idx -= 32;
-                }
-            }
-            if (blocks_to_count)    // blockIsLoop partial chunk
-            {
-                u32 bits = o->blockIsLoop[block_idx >> 5];
-                u32 low_bits_mask_out = 1 + (block_idx & 31) - blocks_to_count;
-                bits &= (u32)(((u64)1 << (1 + (block_idx & 31))) - 1)
-                    ^ (((u32)1 << low_bits_mask_out) - 1);
-                
-                num_loops += __builtin_popcount(bits);
-            }
-        }
-
         IM3CompilationScope scope;
 _       (GetBlockScope (o, & scope, target));
 
@@ -1628,11 +1483,6 @@ _       (AcquireCompilationCodePage (o, & continueOpPage));
         if (scope->opcode == c_waOp_loop)
         {
 _           (ResolveBlockResults (o, scope, true));
-            if (num_loops)
-            {
-                _( EmitOp(o, op_SuspendPopLoop) );
-                EmitConstant32 (o, num_loops);
-            }
 _           (EmitOp (o, op_ContinueLoop));
             EmitPointer (o, scope->pc);
         }
@@ -1650,21 +1500,7 @@ _                   (EmitOp (o, op_Return));
                 {
 _                   (ResolveBlockResults (o, scope, true));
 
-                    if (num_loops)
-                    {
-                        _( EmitOp(o, op_SuspendPopLoop) );
-                        EmitConstant32 (o, num_loops);
-                    }
-
 _                   (EmitPatchingBranch (o, scope));
-                }
-            }
-            else
-            {
-                if (num_loops)
-                {
-                    _( EmitOp(o, op_SuspendPopLoop) );
-                    EmitConstant32 (o, num_loops);
                 }
             }
         }
@@ -2722,29 +2558,6 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
     block->depth            ++;
     block->opcode           = i_blockOpcode;
 
-    if (block->depth >= d_m3MaxSaneFrameDepth)
-    {
-        return "too many frames";
-    }
-
-    if (i_blockOpcode == c_waOp_loop)
-    { 
-        o->blockIsLoop[(block->depth - 1) >> 5]
-            |= (1U << ((block->depth - 1) & 31));
-    }
-    else if (
-        i_blockOpcode == c_waOp_block
-        || i_blockOpcode == c_waOp_if
-        || i_blockOpcode == c_waOp_else
-    )
-    {
-        o->blockIsLoop[(block->depth - 1) >> 5]
-            &= ~((u32)1U << ((block->depth - 1) & 31));
-    }
-    else
-    {
-        return "weird block opcode";
-    }
 
     /*
      The block stack frame is a little strange but for good reasons.  Because blocks need to be restarted to

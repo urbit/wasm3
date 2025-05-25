@@ -22,6 +22,23 @@ r_pop_suspend_ptr(IM3Runtime runtime, u8* base)
     return TO_PTR(void*, offset, base);
 }
 
+#define r_push_suspend(TYPE, VAL)                                 \
+    do {                                                          \
+        if (runtime->stack_suspend)                               \
+        {                                                         \
+            u32 edge = runtime->edge_suspend;                     \
+            if (edge + slots_of(TYPE) > runtime->size_suspend)    \
+            {                                                     \
+                return m3Err_trapStackOverflow;                   \
+            }                                                     \
+            *(TYPE*)(runtime->stack_suspend + edge) = (VAL);      \
+            runtime->edge_suspend += slots_of(TYPE);              \
+        }                                                         \
+    } while (0)
+
+#define r_push_suspend_ptr(VAL, BASE)                             \
+    r_push_suspend(void*, TO_OFF(void*, (void*)VAL, BASE))
+
 M3Result m3_Resume(IM3Runtime runtime);
 
 #endif // m3_resume_h

@@ -783,7 +783,14 @@ d_m3Op  (CallRawFunction)
     // printf("push CallRaw\r\n");
 
     m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
-    runtime->stack = stack_backup;
+
+    // we are not done if we are blocked, so don't restore the stack yet
+    //
+    if (possible_trap != m3Err_ComputationBlock
+        && possible_trap != m3Err_SuspensionError)
+    {
+        runtime->stack = stack_backup;
+    }
     _mem = memory->mallocated;
 
 #if d_m3EnableStrace

@@ -626,7 +626,7 @@ d_m3Op  (Call)
     }
     _mem = memory->mallocated;
 
-    u32 edge_1 = _mem->runtime->edge_suspend;
+    // u32 edge_1 = _mem->runtime->edge_suspend;
     SuspendTag t = op_pop_suspend(SuspendTag);
     if (t != m3_st_Call && t != m3_st_Sentinel)
     {
@@ -637,7 +637,7 @@ d_m3Op  (Call)
     op_pop_suspend(m3reg_t);
     op_pop_suspend_ptr(m3stack_t);
     op_pop_suspend_ptr(pc_t);
-    u32 edge_2 = _mem->runtime->edge_suspend;
+    // u32 edge_2 = _mem->runtime->edge_suspend;
     // printf("pop Call popped: from %d to %d\r\n", edge_1, edge_2);
 
     if (LIKELY(not r))
@@ -734,8 +734,7 @@ d_m3Op  (CallRawFunction)
 
     M3ImportContext ctx;
 
-    M3RawCall* call_p = _pc++;
-    M3RawCall call = *call_p;
+    M3RawCall call = (M3RawCall) (* _pc++);
     ctx.function = immediate (IM3Function);
     ctx.userdata = immediate (void *);
     u64* const sp = ((u64*)_sp);

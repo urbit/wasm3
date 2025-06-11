@@ -915,22 +915,23 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     // printf("push m3_call\r\n");
 
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), _mem, d_m3OpDefaultArgs);
-
-    if (r != m3Err_ComputationBlock && r != m3Err_SuspensionError)
+    if (r == m3Err_ComputationBlock || r == m3Err_SuspensionError)
     {
-        // update memory view after potential memgrow
-        //
-        M3MemoryHeader* _mem = runtime->memory.mallocated;
-    
-        SuspendTag t = op_pop_suspend(SuspendTag);
-        if (t != m3_st_m3_Call && t != m3_st_Sentinel)
-        {
-            // printf("\r\n m3_Call popped tag: %u at %d \r\n", t, runtime->edge_suspend);
-            return "m3_Call mismatching tags";
-        }
-        // printf("pop m3_call\r\n");
-        op_pop_suspend_ptr(IM3Function);
+        return r;
     }
+
+    // update memory view after potential memgrow
+    //
+    _mem = runtime->memory.mallocated;
+
+    SuspendTag t = op_pop_suspend(SuspendTag);
+    if (t != m3_st_m3_Call && t != m3_st_Sentinel)
+    {
+        // printf("\r\n m3_Call popped tag: %u at %d \r\n", t, runtime->edge_suspend);
+        return "m3_Call mismatching tags";
+    }
+    // printf("pop m3_call\r\n");
+    op_pop_suspend_ptr(IM3Function);
 
     ReportNativeStackUsage ();
 

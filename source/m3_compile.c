@@ -1412,8 +1412,6 @@ _               (EmitOp (o, op_ContinueLoopIf));
         {
             if (isReturn)
             {
-                //  num_loops == 0 here
-                //
 _               (ReturnValues (o, scope, true));
 _               (EmitOp (o, op_Return));
             }

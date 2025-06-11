@@ -620,24 +620,25 @@ d_m3Op  (Call)
     // printf("push Call\r\n");
 
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+    if (r == m3Err_ComputationBlock || r == m3Err_SuspensionError)
+    {
+        return r;
+    }
     _mem = memory->mallocated;
 
-    if (r != m3Err_ComputationBlock && r != m3Err_SuspensionError)
+    u32 edge_1 = _mem->runtime->edge_suspend;
+    SuspendTag t = op_pop_suspend(SuspendTag);
+    if (t != m3_st_Call && t != m3_st_Sentinel)
     {
-        u32 edge_1 = _mem->runtime->edge_suspend;
-        SuspendTag t = op_pop_suspend(SuspendTag);
-        if (t != m3_st_Call && t != m3_st_Sentinel)
-        {
-            return "Call mismatching tags";
-        }
-        // printf("pop Call\r\n");
-        op_pop_suspend(f64);
-        op_pop_suspend(m3reg_t);
-        op_pop_suspend_ptr(m3stack_t);
-        op_pop_suspend_ptr(pc_t);
-        u32 edge_2 = _mem->runtime->edge_suspend;
-        // printf("pop Call popped: from %d to %d\r\n", edge_1, edge_2);
+        return "Call mismatching tags";
     }
+    // printf("pop Call\r\n");
+    op_pop_suspend(f64);
+    op_pop_suspend(m3reg_t);
+    op_pop_suspend_ptr(m3stack_t);
+    op_pop_suspend_ptr(pc_t);
+    u32 edge_2 = _mem->runtime->edge_suspend;
+    // printf("pop Call popped: from %d to %d\r\n", edge_1, edge_2);
 
     if (LIKELY(not r))
     {
@@ -687,22 +688,22 @@ d_m3Op  (CallIndirect)
                     // printf("push Call_indirect\r\n");
 
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+                    if (r == m3Err_ComputationBlock || r == m3Err_SuspensionError)
+                    {
+                        return r;
+                    }
                     _mem = memory->mallocated;
 
-                    if (r != m3Err_ComputationBlock && r != m3Err_SuspensionError)
+                    SuspendTag t = op_pop_suspend(SuspendTag);
+                    if (t != m3_st_Call_indirect && t != m3_st_Sentinel)
                     {
-                        SuspendTag t = op_pop_suspend(SuspendTag);
-                        if (t != m3_st_Call_indirect && t != m3_st_Sentinel)
-                        {
-                            return "CallIndirect mismatching tags";
-                        }
-                        // printf("pop Call_indirect\r\n");
-                        op_pop_suspend(f64);
-                        op_pop_suspend(m3reg_t);
-                        op_pop_suspend_ptr(m3stack_t);
-                        op_pop_suspend_ptr(pc_t);
-                        
+                        return "CallIndirect mismatching tags";
                     }
+                    // printf("pop Call_indirect\r\n");
+                    op_pop_suspend(f64);
+                    op_pop_suspend(m3reg_t);
+                    op_pop_suspend_ptr(m3stack_t);
+                    op_pop_suspend_ptr(pc_t);
 
                     if (LIKELY(not r))
                     {
@@ -783,14 +784,13 @@ d_m3Op  (CallRawFunction)
     // printf("push CallRaw\r\n");
 
     m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
-
-    // we are not done if we are blocked, so don't restore the stack yet
-    //
-    if (possible_trap != m3Err_ComputationBlock
-        && possible_trap != m3Err_SuspensionError)
+    if (possible_trap == m3Err_ComputationBlock
+        || possible_trap == m3Err_SuspensionError)
     {
-        runtime->stack = stack_backup;
+        return possible_trap;
     }
+
+    runtime->stack = stack_backup;
     _mem = memory->mallocated;
 
 #if d_m3EnableStrace
@@ -807,17 +807,13 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    if (possible_trap != m3Err_ComputationBlock
-        && possible_trap != m3Err_SuspensionError)
+    SuspendTag t = op_pop_suspend(SuspendTag);
+    if (t != m3_st_CallRaw && t != m3_st_Sentinel)
     {
-        SuspendTag t = op_pop_suspend(SuspendTag);
-        if (t != m3_st_CallRaw && t != m3_st_Sentinel)
-        {
-            return "CallRaw mismatching tags";
-        }
-        // printf("pop CallRaw\r\n");
-        op_pop_suspend_ptr(void*);
+        return "CallRaw mismatching tags";
     }
+    // printf("pop CallRaw\r\n");
+    op_pop_suspend_ptr(void*);
 
     if (UNLIKELY(possible_trap)) {
         pushBacktraceFrame ();
@@ -1027,16 +1023,18 @@ d_m3Op  (Loop)
     }
     while (r == _pc);
 
-    if (r != m3Err_ComputationBlock && r != m3Err_SuspensionError)
+    if (r == m3Err_ComputationBlock || r == m3Err_SuspensionError)
     {
-        SuspendTag t = op_pop_suspend(SuspendTag);
-        if (t != m3_st_Loop && t != m3_st_Sentinel)
-        {
-            return "Loop mismatching tags";
-        }
-        op_pop_suspend_ptr(m3stack_t);
-        op_pop_suspend_ptr(pc_t);
+        return r;
     }
+
+    SuspendTag t = op_pop_suspend(SuspendTag);
+    if (t != m3_st_Loop && t != m3_st_Sentinel)
+    {
+        return "Loop mismatching tags";
+    }
+    op_pop_suspend_ptr(m3stack_t);
+    op_pop_suspend_ptr(pc_t);
     
     forwardTrap (r);
 }

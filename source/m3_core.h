@@ -181,7 +181,7 @@ M3AllocationFunctionStruct;
 #define d_m3MaxSaneFunctionArgRetCount      1000    // still insane, but whatever
 #define d_m3MaxSaneLocalCount               10000   // function args and declared locals
 #define d_m3MaxSaneTypeStackSize            100000
-#define d_m3MaxSaneFrameDepth               1000
+#define d_m3MaxSaneFrameDepth               1024
 
 #define d_externalKind_function             0
 #define d_externalKind_table                1
@@ -229,13 +229,20 @@ void        m3_Abort                (const char* message);
 void *      m3_Malloc               (size_t i_size);
 void *      m3_Realloc              (void *i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_FreeImpl             (void * i_ptr);
-void *      m3_CopyMem              (const void * i_from, size_t i_size);
+void *      m3_MallocTransient      (size_t i_size);
+void *      m3_ReallocTransient     (void *i_ptr, size_t i_newSize, size_t i_oldSize);
+void        m3_FreeTransientImpl    (void * i_ptr);
+void *      m3_MallocMemory         (size_t i_size);
+void *      m3_ReallocMemory        (void *i_ptr, size_t i_newSize, size_t i_oldSize);
+void        m3_FreeMemoryImpl       (void * i_ptr);
+void *      m3_CopyMemTransient     (const void * i_from, size_t i_size);
 
 #define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc (sizeof (STRUCT))
 #define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))
 #define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define     m3_Free(P)                              do { m3_FreeImpl ((void*)(P)); (P) = NULL; } while(0)
-
+#define     m3_FreeTransient(P)                     do { m3_FreeTransientImpl ((void*)(P)); (P) = NULL; } while(0)
+#define     m3_FreeMemory(P)                        do { m3_FreeMemoryImpl ((void*)(P)); (P) = NULL; } while(0)
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 
 bool        IsIntType               (u8 i_wasmType);

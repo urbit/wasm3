@@ -111,10 +111,22 @@ M3AllocationFunctionStruct  m3_alloc_funcs = {
     realloc
 };
 
+M3AllocationFunctionStruct  m3_alloc_transient_funcs = {
+    calloc,
+    free,
+    realloc
+};
+
+M3AllocationFunctionStruct  m3_alloc_memory_funcs = {
+    calloc,
+    free,
+    realloc
+};
+
 M3Result m3_SetAllocators  (
-    void* (* calloc_fn)(size_t, size_t),
-    void (* free_fn)(void*),
-    void* (* realloc_fn)(void*, size_t)
+    void*   (*calloc_fn)    (size_t, size_t),
+    void    (*free_fn)      (void*),
+    void*   (*realloc_fn)   (void*, size_t)
     )
 {
     if ( (calloc_fn == NULL) || (free_fn == NULL) || (realloc_fn == NULL) ) {
@@ -123,6 +135,39 @@ M3Result m3_SetAllocators  (
     m3_alloc_funcs.calloc_fn = calloc_fn;
     m3_alloc_funcs.free_fn = free_fn;
     m3_alloc_funcs.realloc_fn = realloc_fn;
+    return m3Err_none;
+}
+
+// MUST be deterministic in terms of relative address of
+// allocated buffers, e.g. a bump allocator
+//
+M3Result m3_SetTransientAllocators  (
+    void*   (*calloc_fn)    (size_t, size_t),
+    void    (*free_fn)      (void*),
+    void*   (*realloc_fn)   (void*, size_t)
+    )
+{
+    if ( (calloc_fn == NULL) || (free_fn == NULL) || (realloc_fn == NULL) ) {
+        return m3Err_SetAllocatorsFail;
+    }
+    m3_alloc_transient_funcs.calloc_fn = calloc_fn;
+    m3_alloc_transient_funcs.free_fn = free_fn;
+    m3_alloc_transient_funcs.realloc_fn = realloc_fn;
+    return m3Err_none;
+}
+
+M3Result m3_SetMemoryAllocators  (
+    void*   (*calloc_fn)    (size_t, size_t),
+    void    (*free_fn)      (void*),
+    void*   (*realloc_fn)   (void*, size_t)
+    )
+{
+    if ( (calloc_fn == NULL) || (free_fn == NULL) || (realloc_fn == NULL) ) {
+        return m3Err_SetAllocatorsFail;
+    }
+    m3_alloc_memory_funcs.calloc_fn = calloc_fn;
+    m3_alloc_memory_funcs.free_fn = free_fn;
+    m3_alloc_memory_funcs.realloc_fn = realloc_fn;
     return m3Err_none;
 }
 
@@ -157,11 +202,69 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
     return NULL;
 }
 
+void *  m3_MallocTransient  (size_t i_size)
+{
+    void * ptr = m3_alloc_transient_funcs.calloc_fn (i_size, 1);
+
+//    printf("== alloc %d => %p\n", (u32) i_size, ptr);
+
+    return ptr;
+}
+
+void  m3_FreeTransientImpl  (void * io_ptr)
+{
+//    if (io_ptr) printf("== free %p\n", io_ptr);
+    m3_alloc_transient_funcs.free_fn (io_ptr);
+}
+
+void *  m3_ReallocTransient  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+{
+    if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
+
+    void * newPtr = m3_alloc_transient_funcs.realloc_fn (i_ptr, i_newSize);
+
+    if (LIKELY(newPtr))
+    {
+        if (i_newSize > i_oldSize) {
+            memset ((u8 *) newPtr + i_oldSize, 0x0, i_newSize - i_oldSize);
+        }
+        return newPtr;
+    }
+    return NULL;
+}
+
+void *  m3_MallocMemory  (size_t i_size)
+{
+    void * ptr = m3_alloc_memory_funcs.calloc_fn (i_size, 1);
+    return ptr;
+}
+
+void  m3_FreeMemoryImpl  (void * io_ptr)
+{
+    m3_alloc_memory_funcs.free_fn (io_ptr);
+}
+
+void *  m3_ReallocMemory  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+{
+    if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
+
+    void * newPtr = m3_alloc_memory_funcs.realloc_fn (i_ptr, i_newSize);
+
+    if (LIKELY(newPtr))
+    {
+        if (i_newSize > i_oldSize) {
+            memset ((u8 *) newPtr + i_oldSize, 0x0, i_newSize - i_oldSize);
+        }
+        return newPtr;
+    }
+    return NULL;
+}
+
 #endif
 
-void *  m3_CopyMem  (const void * i_from, size_t i_size)
+void *  m3_CopyMemTransient  (const void * i_from, size_t i_size)
 {
-    void * ptr = m3_Malloc(i_size);
+    void * ptr = m3_MallocTransient(i_size);
     if (ptr) {
         memcpy (ptr, i_from, i_size);
     }

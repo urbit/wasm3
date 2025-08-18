@@ -20,7 +20,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
     u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
 
     pageSize = (pageSize + (d_m3CodePageAlignSize-1)) & ~(d_m3CodePageAlignSize-1); // align
-    page = (IM3CodePage)m3_Malloc (pageSize);
+    page = (IM3CodePage)m3_MallocTransient (pageSize);
 
     if (page)
     {
@@ -28,8 +28,9 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
 
 #if d_m3RecordBacktraces
+# error "no backtraces"
         u32 pageSizeBt = sizeof (M3CodeMappingPage) + sizeof (M3CodeMapEntry) * page->info.numLines;
-        page->info.mapping = (M3CodeMappingPage *)m3_Malloc (pageSizeBt);
+        page->info.mapping = (M3CodeMappingPage *)m3_MallocTransient (pageSizeBt);
 
         if (page->info.mapping)
         {
@@ -38,7 +39,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
         }
         else
         {
-            m3_Free (page);
+            m3_FreeTransient (page);
             return NULL;
         }
         page->info.mapping->basePC = GetPageStartPC(page);
@@ -61,9 +62,9 @@ void  FreeCodePages  (IM3CodePage * io_list)
 
         IM3CodePage next = page->info.next;
 #if d_m3RecordBacktraces
-        m3_Free (page->info.mapping);
+        m3_FreeTransient (page->info.mapping);
 #endif // d_m3RecordBacktraces
-        m3_Free (page);
+        m3_FreeTransient (page);
         page = next;
     }
 

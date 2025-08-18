@@ -168,11 +168,17 @@ typedef struct M3Runtime
     IM3Module               modules;        // linked list of imported modules
 
     void *                  stack;
-    u32                     stackSize;
+    m3slot_t *              stack_suspend;
+    u32                     edge_suspend;
+    u32                     size_suspend;
+    const M3Result(*        resume_external     )(M3Result, IM3Runtime);  // [result, runtime, userdata_resume] -> result; external handler
+    u8 *                    base;           // start of the memory arena for persistent computations
+    u8 *                    base_transient; // start of the memory arena for transient data
     u32                     numStackSlots;
     IM3Function             lastCalled;     // last function that successfully executed
 
     void *                  userdata;
+    void *                  userdata_resume;
 
     M3Memory                memory;
     u32                     memoryLimit;
@@ -206,6 +212,11 @@ IM3CodePage                 AcquireCodePage             (IM3Runtime io_runtime);
 IM3CodePage                 AcquireCodePageWithCapacity (IM3Runtime io_runtime, u32 i_lineCount);
 void                        ReleaseCodePage             (IM3Runtime io_runtime, IM3CodePage i_codePage);
 M3Result                    EvaluateExpression          (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end);
+
+M3Result    m3_SuspendStackPush64       (IM3Runtime runtime, u64 value);
+M3Result    m3_SuspendStackPop64        (IM3Runtime runtime, u64* out);
+M3Result    m3_SuspendStackPushExtTag   (IM3Runtime runtime);
+M3Result    m3_SuspendStackPopExtTag    (IM3Runtime runtime);
 
 d_m3EndExternC
 

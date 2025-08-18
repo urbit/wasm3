@@ -1481,7 +1481,6 @@ _       (AcquireCompilationCodePage (o, & continueOpPage));
         if (scope->opcode == c_waOp_loop)
         {
 _           (ResolveBlockResults (o, scope, true));
-
 _           (EmitOp (o, op_ContinueLoop));
             EmitPointer (o, scope->pc);
         }
@@ -1568,7 +1567,7 @@ _       (Push (o, type, topSlot));
 
 M3Result  Compile_Call  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
 _try {
     u32 functionIndex;
@@ -1621,10 +1620,11 @@ _try {
     u32 typeIndex;
 _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
 
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    u32 table_idx;
+_   (ReadLEB_u32 (& table_idx, & o->wasm, o->wasmEnd));
 
     _throwif ("function call type index out of range", typeIndex >= o->module->numFuncTypes);
+    _throwif ("non-zero table index not supported", table_idx > 0);
 
     if (IsStackTopInRegister (o))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));
@@ -2556,6 +2556,7 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
     block->depth            ++;
     block->opcode           = i_blockOpcode;
 
+
     /*
      The block stack frame is a little strange but for good reasons.  Because blocks need to be restarted to
      compile different pathways (if/else), the incoming params must be saved.  The parameters are popped
@@ -2801,7 +2802,7 @@ _   (CompileBlockStatements (o));
 
     if (numConstantSlots)
     {
-        io_function->constants = m3_CopyMem (o->constants, io_function->numConstantBytes);
+        io_function->constants = m3_CopyMemTransient (o->constants, io_function->numConstantBytes);
         _throwifnull(io_function->constants);
     }
 

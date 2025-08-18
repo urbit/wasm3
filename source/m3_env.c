@@ -167,7 +167,7 @@ void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i
 }
 
 
-IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, void * i_userdata)
+IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, void * i_userdata, bool suspend)
 {
     IM3Runtime runtime = m3_AllocStruct (M3Runtime);
 
@@ -185,6 +185,26 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
             runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->stack);
         }
         else m3_Free (runtime);
+
+        if (suspend)
+        {
+            size_t stack_suspend_bytes = (
+                (i_stackSizeInBytes + (sizeof(m3slot_t) - 1))
+                & ~(sizeof(m3slot_t) - 1)   // round up to a multiple of sizeof(m3slot_t)
+            );
+            
+            runtime->stack_suspend = m3_Malloc(stack_suspend_bytes);
+    
+            if (runtime->stack_suspend)
+            {
+                runtime->size_suspend = stack_suspend_bytes / sizeof(m3slot_t);
+            }
+            else
+            {
+                m3_Free(runtime->stack);
+                m3_Free(runtime);
+            }
+        }
     }
 
     return runtime;
@@ -231,7 +251,8 @@ void  Runtime_Release  (IM3Runtime i_runtime)
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
     m3_Free (i_runtime->stack);
-    m3_Free (i_runtime->memory.mallocated);
+    m3_Free (i_runtime->stack_suspend);
+    m3_FreeMemory(i_runtime->memory.mallocated);
 }
 
 
@@ -379,7 +400,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
-        void* newMem = m3_Realloc (memory->mallocated, numBytes, numPreviousBytes);
+        void* newMem = m3_ReallocMemory (memory->mallocated, numBytes, numPreviousBytes);
         _throwifnull(newMem);
 
         memory->mallocated = (M3MemoryHeader*)newMem;
@@ -885,11 +906,36 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     }
 
     m3StackCheckInit();
-    M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+
+    u8* base = runtime->base;
+    u8* base_pc = runtime->base_transient;
+    M3MemoryHeader* _mem = runtime->memory.mallocated;
+    op_push_suspend_ptr(i_function, base);
+    op_push_suspend(SuspendTag, m3_st_m3_Call);
+    // printf("push m3_call\r\n");
+
+    M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), _mem, d_m3OpDefaultArgs);
+    if (r == m3Err_ComputationBlock || r == m3Err_SuspensionError)
+    {
+        return r;
+    }
+
+    // update memory view after potential memgrow
+    //
+    _mem = runtime->memory.mallocated;
+
+    SuspendTag t = op_pop_suspend(SuspendTag);
+    if (t != m3_st_m3_Call && t != m3_st_Sentinel)
+    {
+        // printf("\r\n m3_Call popped tag: %u at %d \r\n", t, runtime->edge_suspend);
+        return "m3_Call mismatching tags";
+    }
+    // printf("pop m3_call\r\n");
+    op_pop_suspend_ptr(IM3Function);
+
     ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
-
 
     return r;
 }

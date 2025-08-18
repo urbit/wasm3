@@ -185,6 +185,11 @@ d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
+// misc results
+d_m3ErrorConst  (NoSuspensionStack,             "no suspension stack")
+d_m3ErrorConst  (ComputationBlock,              "wasm3 encountered a blocking computation and might perform suspension")
+d_m3ErrorConst  (SuspensionError,               "error during suspension")
+
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  configuration, can be found in m3_config.h, m3_config_platforms.h, m3_core.h)
@@ -203,7 +208,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
                                                      uint32_t               i_stackSizeInBytes,
-                                                     void *                 i_userdata);
+                                                     void *                 i_userdata,
+                                                     bool                   suspend);
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 
@@ -220,6 +226,20 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_SetAllocators            (void* (* calloc_fn)(size_t, size_t),
                                                      void  (* free_fn)(void*),
                                                      void* (* realloc_fn)(void*, size_t));
+
+    M3Result            m3_SetTransientAllocators   (void* (* calloc_fn)(size_t, size_t),
+                                                     void  (* free_fn)(void*),
+                                                     void* (* realloc_fn)(void*, size_t));
+                                                    
+    M3Result            m3_SetMemoryAllocators      (void* (* calloc_fn)(size_t, size_t),
+                                                     void  (* free_fn)(void*),
+                                                     void* (* realloc_fn)(void*, size_t));
+
+    void                m3_RewritePointersRuntime   (IM3Runtime runtime,
+                                                     uint8_t* base,
+                                                     bool is_subtract);
+
+    M3Result            m3_Resume                   (IM3Runtime runtime);
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -267,6 +287,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     const char*         m3_GetModuleName            (IM3Module i_module);
     void                m3_SetModuleName            (IM3Module i_module, const char* name);
     IM3Runtime          m3_GetModuleRuntime         (IM3Module i_module);
+    M3Result            m3_ValidateModule           (IM3Module i_module);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  globals

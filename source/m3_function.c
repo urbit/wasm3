@@ -83,7 +83,7 @@ void FreeImportInfo (M3ImportInfo * i_info)
 
 void  Function_Release  (IM3Function i_function)
 {
-    m3_Free (i_function->constants);
+    m3_FreeTransient (i_function->constants);
 
     for (int i = 0; i < i_function->numNames; i++)
     {
@@ -121,6 +121,7 @@ void  Function_Release  (IM3Function i_function)
 void  Function_FreeCompiledCode (IM3Function i_function)
 {
 #   if (d_m3EnableCodePageRefCounting)
+#   error "no codepage refcounting"
     {
         i_function->compiled = NULL;
 

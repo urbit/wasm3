@@ -273,6 +273,39 @@ void *  m3_CopyMemTransient  (const void * i_from, size_t i_size)
 
 //--------------------------------------------------------------------------------------------
 
+static void(* m3_poller )(void);
+
+void m3_SetPoller (void(*callback_fn)(void))
+{
+    m3_poller = callback_fn;
+}
+
+void m3_Poll(void)
+{
+    if (m3_poller) m3_poller();
+}
+
+//--------------------------------------------------------------------------------------------
+
+
+void m3_StashSettable(M3GlobalSettable* stash)
+{
+    stash->allocators.module = m3_alloc_funcs;
+    stash->allocators.transient = m3_alloc_transient_funcs;
+    stash->allocators.memory = m3_alloc_memory_funcs;
+    stash->poll_fn = m3_poller;
+}
+
+void m3_RestoreSettable(M3GlobalSettable* stash)
+{
+    m3_alloc_funcs = stash->allocators.module;
+    m3_alloc_transient_funcs = stash->allocators.transient;
+    m3_alloc_memory_funcs = stash->allocators.memory;
+    m3_poller = stash->poll_fn;
+}
+
+//--------------------------------------------------------------------------------------------
+
 #if d_m3LogNativeStack
 
 static size_t stack_start;

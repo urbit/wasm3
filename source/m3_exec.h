@@ -604,6 +604,8 @@ d_m3Op  (SetGlobal_i64)
 
 d_m3Op  (Call)
 {
+    m3_Poll();
+
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
     IM3Memory memory            = m3MemInfo (_mem);
@@ -654,6 +656,8 @@ d_m3Op  (Call)
 
 d_m3Op  (CallIndirect)
 {
+    m3_Poll();
+
     u32 tableIndex              = slot (u32);
     IM3Module module            = immediate (IM3Module);
     IM3FuncType type            = immediate (IM3FuncType);
@@ -730,6 +734,8 @@ d_m3Op  (CallIndirect)
 
 d_m3Op  (CallRawFunction)
 {
+    m3_Poll();
+    
     d_m3TracePrepare
 
     M3ImportContext ctx;
@@ -1363,6 +1369,7 @@ d_m3Op  (ContinueLoop)
     // TODO: this is where execution can "escape" the M3 code and callback to the client / fiber switch
     // OR it can go in the Loop operation. I think it's best to do here. adding code to the loop operation
     // has the potential to increase its native-stack usage. (don't forget ContinueLoopIf too.)
+    m3_Poll();
 
     void * loopId = immediate (void *);
     return loopId;
@@ -1376,6 +1383,7 @@ d_m3Op  (ContinueLoopIf)
 
     if (condition)
     {
+        m3_Poll();
         return loopId;
     }
     else nextOp ();

@@ -162,6 +162,17 @@ typedef struct M3AllocationFunctionStruct
 }
 M3AllocationFunctionStruct;
 
+typedef struct M3GlobalSettable
+{
+    struct {
+        M3AllocationFunctionStruct module;
+        M3AllocationFunctionStruct transient;
+        M3AllocationFunctionStruct memory;
+    } allocators;
+    
+    void(* poll_fn )(void);
+} M3GlobalSettable;
+
 #define d_m3CodePageFreeLinesThreshold      4+2       // max is: select _sss & CallIndirect + 2 for bridge
 
 #define d_m3MemPageSize                     65536
@@ -236,6 +247,12 @@ void *      m3_MallocMemory         (size_t i_size);
 void *      m3_ReallocMemory        (void *i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_FreeMemoryImpl       (void * i_ptr);
 void *      m3_CopyMemTransient     (const void * i_from, size_t i_size);
+
+void        m3_SetPoller            (void(*callback_fn)(void));
+void        m3_Poll                 (void);
+
+void        m3_StashSettable        (struct M3GlobalSettable* stash);
+void        m3_RestoreSettable      (struct M3GlobalSettable* stash);
 
 #define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc (sizeof (STRUCT))
 #define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))

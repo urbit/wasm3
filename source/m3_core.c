@@ -105,28 +105,34 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 #else
 
+static void*
+_c_realloc(void* ptr, size_t new, size_t old)
+{
+    return realloc(ptr, new);
+}
+
 M3AllocationFunctionStruct  m3_alloc_funcs = {
     calloc,
     free,
-    realloc
+    _c_realloc
 };
 
 M3AllocationFunctionStruct  m3_alloc_transient_funcs = {
     calloc,
     free,
-    realloc
+    _c_realloc
 };
 
 M3AllocationFunctionStruct  m3_alloc_memory_funcs = {
     calloc,
     free,
-    realloc
+    _c_realloc
 };
 
 M3Result m3_SetAllocators  (
     void*   (*calloc_fn)    (size_t, size_t),
     void    (*free_fn)      (void*),
-    void*   (*realloc_fn)   (void*, size_t)
+    void*   (*realloc_fn)   (void*, size_t, size_t)
     )
 {
     if ( (calloc_fn == NULL) || (free_fn == NULL) || (realloc_fn == NULL) ) {
@@ -144,7 +150,7 @@ M3Result m3_SetAllocators  (
 M3Result m3_SetTransientAllocators  (
     void*   (*calloc_fn)    (size_t, size_t),
     void    (*free_fn)      (void*),
-    void*   (*realloc_fn)   (void*, size_t)
+    void*   (*realloc_fn)   (void*, size_t, size_t)
     )
 {
     if ( (calloc_fn == NULL) || (free_fn == NULL) || (realloc_fn == NULL) ) {
@@ -159,7 +165,7 @@ M3Result m3_SetTransientAllocators  (
 M3Result m3_SetMemoryAllocators  (
     void*   (*calloc_fn)    (size_t, size_t),
     void    (*free_fn)      (void*),
-    void*   (*realloc_fn)   (void*, size_t)
+    void*   (*realloc_fn)   (void*, size_t, size_t)
     )
 {
     if ( (calloc_fn == NULL) || (free_fn == NULL) || (realloc_fn == NULL) ) {
@@ -190,7 +196,7 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
-    void * newPtr = m3_alloc_funcs.realloc_fn (i_ptr, i_newSize);
+    void * newPtr = m3_alloc_funcs.realloc_fn (i_ptr, i_newSize, i_oldSize);
 
     if (LIKELY(newPtr))
     {
@@ -221,7 +227,7 @@ void *  m3_ReallocTransient  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
-    void * newPtr = m3_alloc_transient_funcs.realloc_fn (i_ptr, i_newSize);
+    void * newPtr = m3_alloc_transient_funcs.realloc_fn (i_ptr, i_newSize, i_oldSize);
 
     if (LIKELY(newPtr))
     {
@@ -248,7 +254,7 @@ void *  m3_ReallocMemory  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
-    void * newPtr = m3_alloc_memory_funcs.realloc_fn (i_ptr, i_newSize);
+    void * newPtr = m3_alloc_memory_funcs.realloc_fn (i_ptr, i_newSize, i_oldSize);
 
     if (LIKELY(newPtr))
     {

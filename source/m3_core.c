@@ -106,7 +106,7 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 #else
 
 static void*
-_c_realloc(void* ptr, size_t new, size_t old)
+_c_realloc(void* ptr, size_t old, size_t new)
 {
     return realloc(ptr, new);
 }
@@ -195,8 +195,8 @@ void  m3_FreeImpl  (void * io_ptr)
 void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
-
-    void * newPtr = m3_alloc_funcs.realloc_fn (i_ptr, i_newSize, i_oldSize);
+    //  NB: different order of new/old
+    void * newPtr = m3_alloc_funcs.realloc_fn (i_ptr, i_oldSize, i_newSize);
 
     if (LIKELY(newPtr))
     {
@@ -226,8 +226,8 @@ void  m3_FreeTransientImpl  (void * io_ptr)
 void *  m3_ReallocTransient  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
-
-    void * newPtr = m3_alloc_transient_funcs.realloc_fn (i_ptr, i_newSize, i_oldSize);
+    //  NB: different order of new/old
+    void * newPtr = m3_alloc_transient_funcs.realloc_fn (i_ptr, i_oldSize, i_newSize);
 
     if (LIKELY(newPtr))
     {
@@ -253,8 +253,8 @@ void  m3_FreeMemoryImpl  (void * io_ptr)
 void *  m3_ReallocMemory  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
-
-    void * newPtr = m3_alloc_memory_funcs.realloc_fn (i_ptr, i_newSize, i_oldSize);
+    //  NB: different order of new/old
+    void * newPtr = m3_alloc_memory_funcs.realloc_fn (i_ptr, i_oldSize, i_newSize);
 
     if (LIKELY(newPtr))
     {

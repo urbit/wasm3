@@ -225,15 +225,15 @@ d_m3ErrorConst  (SuspensionError,               "error during suspension")
 
     M3Result            m3_SetAllocators            (void* (* calloc_fn)(size_t, size_t),
                                                      void  (* free_fn)(void*),
-                                                     void* (* realloc_fn)(void*, size_t, size_t));
+                                                     void* (* realloc_fn)(void*, size_t, size_t));  //  first old, then new
 
     M3Result            m3_SetTransientAllocators   (void* (* calloc_fn)(size_t, size_t),
                                                      void  (* free_fn)(void*),
-                                                     void* (* realloc_fn)(void*, size_t, size_t));
+                                                     void* (* realloc_fn)(void*, size_t, size_t));  //  first old, then new
                                                     
     M3Result            m3_SetMemoryAllocators      (void* (* calloc_fn)(size_t, size_t),
                                                      void  (* free_fn)(void*),
-                                                     void* (* realloc_fn)(void*, size_t, size_t));
+                                                     void* (* realloc_fn)(void*, size_t, size_t));  //  first old, then new
 
     void                m3_RewritePointersRuntime   (IM3Runtime runtime,
                                                      uint8_t* base,

@@ -195,8 +195,12 @@ ParseSection_Table (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
             _( ReadLEB_u32(&table_lim_min, &i_bytes, i_end) );
             if (flag == 1)
             {
-                _( ReadLEB_i32 (&table_lim_max, &i_bytes, i_end) );
-                _throwif(m3Err_wasmMalformed, (table_lim_max < table_lim_min));
+                // limits are unsigned: read as signed, a maximum such as 102 (0x66) came out negative
+                u32 lim_max;
+                _( ReadLEB_u32 (&lim_max, &i_bytes, i_end) );
+                _throwif(m3Err_wasmMalformed, (lim_max < table_lim_min));
+                _throwif(m3Err_wasmMalformed, (lim_max > INT32_MAX));
+                table_lim_max = (i32) lim_max;
             }
             else if (flag != 0)
             {

@@ -1542,6 +1542,12 @@ _       (Pop (o));
     u16 numArgs = GetFuncTypeNumParams (i_type);
     u16 numRets = GetFuncTypeNumResults (i_type);
 
+    // the callee's args and results are placed above every slot in use, so
+    // a long chain of calls climbs the slot table. refuse to compile, rather
+    // than write past the end of m3Slots.
+    _throwif (m3Err_functionStackOverflow,
+              (u32) topSlot + ((u32) numArgs + numRets) * c_ioSlotCount > d_m3MaxFunctionSlots);
+
     u16 argTop = topSlot + (numArgs + numRets) * c_ioSlotCount;
 
     while (numArgs--)
